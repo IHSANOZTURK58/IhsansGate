@@ -471,15 +471,23 @@
 
                 <!-- Player Controls (Fixed Bottom) -->
                 <div class="scenario-controls"
-                    style="position:fixed; bottom:0; left:0; width:100%; background:rgba(30, 41, 59, 0.95); backdrop-filter:blur(10px); padding:1rem; display:flex; justify-content:center; align-items:center; gap:1.5rem; border-top:1px solid rgba(255,255,255,0.1); z-index:100;">
+                    style="position:fixed; bottom:0; left:0; width:100%; background:rgba(30, 41, 59, 0.95); backdrop-filter:blur(10px); padding:0.5rem 1rem; display:flex; justify-content:center; align-items:center; gap:0.8rem; border-top:1px solid rgba(255,255,255,0.1); z-index:100; flex-wrap: wrap;">
 
                     <button class="btn-round-icon" onclick="app.restartScenario()" title="Başa Dön">
                         ⏮️
                     </button>
 
+                    <button class="btn-round-icon" onclick="app.prevScenarioStep()" title="Önceki Cümle">
+                        ⏪
+                    </button>
+
                     <button id="btn-scenario-play" class="btn-round-large" onclick="app.toggleScenarioPlay()"
                         title="Oynat/Durdur" style="width:60px; height:60px; font-size:1.5rem;">
                         ▶
+                    </button>
+
+                    <button class="btn-round-icon" onclick="app.nextScenarioStep()" title="Sonraki Cümle">
+                        ⏩
                     </button>
 
                     <button class="btn-round-icon" onclick="app.toggleScenarioTranslation()"
@@ -935,7 +943,7 @@
                             style="background:rgba(255,255,255,0.05); padding:1rem; border-radius:12px; margin-bottom:1.5rem; text-align:center; border:1px solid var(--border-glass);">
                             <div style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.3rem;">Kayıtlı
                                 Hesap:</div>
-                            <div id="remembered-email-display"
+                            <div id="remembered-username-display"
                                 style="font-weight:bold; color:var(--accent-gold); font-size:1.1rem; word-break:break-all;">
                                 ...</div>
                         </div>
@@ -962,10 +970,10 @@
 
                         <!-- Login Form -->
                         <div id="form-login">
-                            <input type="email" id="login-email" class="landing-input" placeholder="E-Posta Adresi"
-                                style="margin-bottom:1rem;">
+                            <input type="text" id="login-username" class="landing-input" placeholder="Kullanıcı Adı"
+                                style="margin-bottom:1rem;" autocomplete="username">
                             <input type="password" id="login-password" class="landing-input" placeholder="Şifre"
-                                style="margin-bottom:1rem;">
+                                style="margin-bottom:1rem;" autocomplete="current-password">
                             <button class="btn btn-primary" onclick="app.submitLogin()"
                                 style="width:100%; padding:0.8rem;">Giriş Yap &rarr;</button>
                         </div>
@@ -973,11 +981,9 @@
                         <!-- Register Form -->
                         <div id="form-register" class="hidden">
                             <input type="text" id="reg-username" class="landing-input"
-                                placeholder="Oyun İsmin (Görünecek Ad)" style="margin-bottom:1rem;">
-                            <input type="email" id="reg-email" class="landing-input" placeholder="E-Posta Adresi"
-                                style="margin-bottom:1rem;">
+                                placeholder="Kullanıcı Adı (Görünecek Ad)" style="margin-bottom:1rem;" autocomplete="username">
                             <input type="password" id="reg-password" class="landing-input"
-                                placeholder="Şifre (En az 6 karakter)" style="margin-bottom:1rem;">
+                                placeholder="Şifre (En az 6 karakter)" style="margin-bottom:1rem;" autocomplete="new-password">
                             <button class="btn btn-primary" onclick="app.submitRegister()"
                                 style="width:100%; padding:0.8rem;">Kayıt Ol &rarr;</button>
                         </div>

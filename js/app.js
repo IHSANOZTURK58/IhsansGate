@@ -2541,17 +2541,20 @@ const app = {
     },
 
     returnToDashboard() {
+        if (typeof this.stopScenario === 'function') this.stopScenario();
         this.state.currentView = 'dashboard';
         this.render();
     },
 
     openReadingListeningModes() {
+        if (typeof this.stopScenario === 'function') this.stopScenario();
         this.state.previousView = this.state.currentView;
         this.state.currentView = 'reading-listening';
         this.render();
     },
 
     initScenarioMode() {
+        if (typeof this.stopScenario === 'function') this.stopScenario();
         this.state.previousView = this.state.currentView;
         this.state.currentView = 'scenarios';
         this.render();
@@ -2602,6 +2605,7 @@ const app = {
     },
 
     openScenario(id) {
+        this.stopScenario();
         const scenario = window.SCENARIO_DATA.find(s => s.id === id);
         if (!scenario) return;
 
@@ -2616,27 +2620,33 @@ const app = {
 
         document.getElementById('scenario-player-title').textContent = scenario.title_tr || scenario.title;
         const dialogueArea = document.getElementById('scenario-dialogue-area');
-        if (dialogueArea) dialogueArea.innerHTML = '';
+        if (dialogueArea) {
+            dialogueArea.innerHTML = '';
+            // Render the entire dialogue at once
+            scenario.content.forEach((item, index) => {
+                dialogueArea.appendChild(this.buildScenarioBubble(item, index));
+            });
+        }
 
         const playBtn = document.getElementById('btn-scenario-play');
         if (playBtn) playBtn.textContent = '⏸';
 
-        this.renderScenarioStep();
+        this.highlightCurrentScenarioStep(true);
     },
 
-    renderScenarioStep() {
-        const scenario = this.state.currentScenario;
-        const dialogueArea = document.getElementById('scenario-dialogue-area');
-        if (!scenario || !dialogueArea) return;
+    stopScenario() {
+        this.state.isScenarioPlaying = false;
+        if (window.ttsManager) window.ttsManager.stop();
+        const playBtn = document.getElementById('btn-scenario-play');
+        if (playBtn) playBtn.textContent = '▶';
+    },
 
-        const item = scenario.content[this.state.currentDialogueIndex];
-        if (!item) return;
-
+    buildScenarioBubble(item, index) {
         const bubble = document.createElement('div');
-        bubble.className = 'dialogue-bubble ' + (this.state.currentDialogueIndex % 2 === 0 ? 'speaker-1' : 'speaker-2');
+        bubble.id = `scenario-bubble-${index}`;
+        bubble.className = 'dialogue-bubble ' + (index % 2 === 0 ? 'speaker-1' : 'speaker-2');
 
-        // Dynamic styles if CSS classes are missing
-        const isSpeaker1 = this.state.currentDialogueIndex % 2 === 0;
+        const isSpeaker1 = index % 2 === 0;
         bubble.style.cssText = `
             max-width: 85%;
             margin-bottom: 1rem;
@@ -2647,8 +2657,10 @@ const app = {
             background: ${isSpeaker1 ? 'rgba(30, 41, 59, 0.8)' : 'rgba(212, 175, 55, 0.15)'};
             border: 1px solid ${isSpeaker1 ? 'rgba(255,255,255,0.1)' : 'rgba(212, 175, 55, 0.3)'};
             color: white;
-            animation: fadeInDialog 0.5s ease-out;
+            transition: all 0.3s ease;
             backdrop-filter: blur(10px);
+            opacity: 0.4;
+            transform: scale(0.98);
         `;
 
         bubble.innerHTML = `
@@ -2658,26 +2670,71 @@ const app = {
                 ${item.tr}
             </div>
         `;
+        return bubble;
+    },
 
-        dialogueArea.appendChild(bubble);
-        bubble.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    highlightCurrentScenarioStep(playAudio = true) {
+        const scenario = this.state.currentScenario;
+        if (!scenario) return;
 
-        // Auto play speech with gender-based voice
-        const speakerGender = this._getScenarioSpeakerGender(item.speaker, this.state.currentDialogueIndex);
-        this.speakScenarioItem(item.text, speakerGender);
+        // Reset all bubbles
+        const allBubbles = document.querySelectorAll('.dialogue-bubble');
+        allBubbles.forEach(b => {
+            b.style.opacity = '0.4';
+            b.style.transform = 'scale(0.98)';
+            b.style.boxShadow = 'none';
+            b.style.border = b.className.includes('speaker-1') 
+                             ? '1px solid rgba(255,255,255,0.1)' 
+                             : '1px solid rgba(212, 175, 55, 0.3)';
+        });
+
+        // Highlight current bubble
+        const currentBubble = document.getElementById(`scenario-bubble-${this.state.currentDialogueIndex}`);
+        if (currentBubble) {
+            currentBubble.style.opacity = '1';
+            currentBubble.style.transform = 'scale(1.02)';
+            currentBubble.style.boxShadow = '0 10px 25px rgba(0,0,0,0.5)';
+            currentBubble.style.border = '1px solid var(--accent-gold)';
+            
+            // Center the bubble ensuring it doesn't stay hidden under controls
+            currentBubble.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        if (playAudio) {
+            const item = scenario.content[this.state.currentDialogueIndex];
+            const speakerGender = this._getScenarioSpeakerGender(item.speaker, this.state.currentDialogueIndex);
+            this.speakScenarioItem(item.text, speakerGender);
+        }
+    },
+
+    nextScenarioStep() {
+        this.stopScenario();
+        if (!this.state.currentScenario) return;
+        if (this.state.currentDialogueIndex < this.state.currentScenario.content.length - 1) {
+            this.state.currentDialogueIndex++;
+            this.state.isScenarioPlaying = true;
+            document.getElementById('btn-scenario-play').textContent = '⏸';
+            this.highlightCurrentScenarioStep(true);
+        }
+    },
+
+    prevScenarioStep() {
+        this.stopScenario();
+        if (!this.state.currentScenario) return;
+        if (this.state.currentDialogueIndex > 0) {
+            this.state.currentDialogueIndex--;
+            this.state.isScenarioPlaying = true;
+            document.getElementById('btn-scenario-play').textContent = '⏸';
+            this.highlightCurrentScenarioStep(true);
+        }
     },
 
     // Determine speaker gender from the speaker label
     _getScenarioSpeakerGender(speaker, index) {
         if (!speaker) return index % 2 === 0 ? 'male' : 'female';
-
-        // Check all content for this speaker's first appearance with gender tag
         const scenario = this.state.currentScenario;
         if (scenario && scenario.content) {
-            // Get the base name of the speaker (without gender tag)
             const baseName = speaker.replace(/\s*\((?:Male|Female)\)/, '').trim();
-
-            // Search through all dialogues to find gender tag for this base name
             for (const item of scenario.content) {
                 const itemBase = item.speaker.replace(/\s*\((?:Male|Female)\)/, '').trim();
                 if (itemBase === baseName) {
@@ -2686,65 +2743,51 @@ const app = {
                 }
             }
         }
-
-        // Direct check on current speaker
         if (speaker.includes('(Female)')) return 'female';
         if (speaker.includes('(Male)')) return 'male';
-
-        // Fallback: alternate by index
         return index % 2 === 0 ? 'male' : 'female';
     },
 
     speakScenarioItem(text, gender) {
         if (!window.ttsManager) return;
-
-        // Male = andrew (deep voice), Female = ava (soft voice)
         const voice = gender === 'female' ? 'ava' : 'andrew';
-
         window.ttsManager.speak(text, voice).then(() => {
             if (this.state.isScenarioPlaying) {
                 setTimeout(() => {
                     if (this.state.currentDialogueIndex < this.state.currentScenario.content.length - 1) {
                         this.state.currentDialogueIndex++;
-                        this.renderScenarioStep();
+                        this.highlightCurrentScenarioStep(true);
                     } else {
-                        this.state.isScenarioPlaying = false;
-                        const playBtn = document.getElementById('btn-scenario-play');
-                        if (playBtn) playBtn.textContent = '▶';
+                        this.stopScenario();
                     }
-                }, 600); // Reduced delay for more natural flow
+                }, 600);
             }
         });
     },
 
     toggleScenarioPlay() {
-        this.state.isScenarioPlaying = !this.state.isScenarioPlaying;
-        const btn = document.getElementById('btn-scenario-play');
-        btn.textContent = this.state.isScenarioPlaying ? '⏸' : '▶';
-
-        if (this.state.isScenarioPlaying) {
-            if (this.state.currentDialogueIndex < this.state.currentScenario.content.length - 1) {
-                // If not at end, maybe move to next or just restart current if paused?
-                // Let's just start/resume
-                this.renderScenarioStep();
+        if (!this.state.isScenarioPlaying) {
+            this.state.isScenarioPlaying = true;
+            document.getElementById('btn-scenario-play').textContent = '⏸';
+            if (this.state.currentScenario && this.state.currentDialogueIndex < this.state.currentScenario.content.length - 1) {
+                this.highlightCurrentScenarioStep(true);
             } else {
-                // Finished scenario - restart
                 this.restartScenario();
-                this.state.isScenarioPlaying = true;
-                btn.textContent = '⏸';
             }
         } else {
-            if (window.ttsManager) window.ttsManager.stop();
+            this.stopScenario();
         }
     },
 
     restartScenario() {
+        this.stopScenario();
         this.state.currentDialogueIndex = 0;
-        this.state.isScenarioPlaying = false;
-        document.getElementById('btn-scenario-play').textContent = '▶';
-        document.getElementById('scenario-dialogue-area').innerHTML = '';
-        if (window.ttsManager) window.ttsManager.stop();
-        this.renderScenarioStep();
+        this.state.isScenarioPlaying = true;
+        document.getElementById('btn-scenario-play').textContent = '⏸';
+        
+        // Ensure UI is scrolled back smoothly
+        document.getElementById('scenario-dialogue-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        this.highlightCurrentScenarioStep(true);
     },
 
     toggleScenarioTranslation() {
@@ -3424,7 +3467,7 @@ const app = {
         }
     },
 
-    // --- EMAIL AUTH SYSTEM ---
+    // --- AUTH SYSTEM (Username-based with Pseudo Email) ---
     openLoginModal() {
         const modal = document.getElementById('view-login-modal');
         if (!modal) return;
@@ -3432,14 +3475,14 @@ const app = {
         modal.classList.remove('hidden');
         document.getElementById('auth-error-msg').textContent = '';
 
-        const rememberedEmail = localStorage.getItem('remembered_email');
+        const rememberedUsername = localStorage.getItem('remembered_username');
         const remView = document.getElementById('remembered-account-view');
         const stdView = document.getElementById('standard-auth-view');
 
-        if (rememberedEmail) {
+        if (rememberedUsername) {
             stdView.classList.add('hidden');
             remView.classList.remove('hidden');
-            document.getElementById('remembered-email-display').textContent = rememberedEmail;
+            document.getElementById('remembered-username-display').textContent = rememberedUsername;
             document.getElementById('rem-login-password').value = '';
             document.getElementById('rem-login-password').focus();
 
@@ -3453,7 +3496,7 @@ const app = {
     },
 
     resetRememberedEmail() {
-        localStorage.removeItem('remembered_email');
+        localStorage.removeItem('remembered_username');
         const remView = document.getElementById('remembered-account-view');
         const stdView = document.getElementById('standard-auth-view');
         if (remView) remView.classList.add('hidden');
@@ -3479,25 +3522,27 @@ const app = {
     },
 
     async submitLogin(isRemembered = false) {
-        let email, password;
+        let username, password;
         if (isRemembered) {
-            email = localStorage.getItem('remembered_email');
+            username = localStorage.getItem('remembered_username');
             password = document.getElementById('rem-login-password').value.trim();
         } else {
-            email = document.getElementById('login-email').value.trim();
+            username = document.getElementById('login-username').value.trim();
             password = document.getElementById('login-password').value.trim();
         }
 
         const errorEl = document.getElementById('auth-error-msg');
 
-        if (!email || !password) {
+        if (!username || !password) {
             errorEl.textContent = "Lütfen tüm alanları doldur.";
             return;
         }
 
+        const fakeEmail = username.toLowerCase().replace(/[^a-z0-9_]/g, '') + "@ihsansgate.local";
+
         try {
-            await auth.signInWithEmailAndPassword(email, password);
-            localStorage.setItem('remembered_email', email); // Save for next time
+            await auth.signInWithEmailAndPassword(fakeEmail, password);
+            localStorage.setItem('remembered_username', username); // Save for next time
             document.getElementById('view-login-modal').classList.add('hidden');
         } catch (error) {
             console.error("Login Error:", error);
@@ -3508,11 +3553,10 @@ const app = {
 
     async submitRegister() {
         const username = document.getElementById('reg-username').value.trim();
-        const email = document.getElementById('reg-email').value.trim();
         const password = document.getElementById('reg-password').value.trim();
         const errorEl = document.getElementById('auth-error-msg');
 
-        if (!username || !email || !password) {
+        if (!username || !password) {
             errorEl.textContent = "Lütfen tüm alanları doldur.";
             return;
         }
@@ -3521,20 +3565,22 @@ const app = {
             return;
         }
 
+        const fakeEmail = username.toLowerCase().replace(/[^a-z0-9_]/g, '') + "@ihsansgate.local";
+
         try {
-            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            const userCredential = await auth.createUserWithEmailAndPassword(fakeEmail, password);
             const user = userCredential.user;
 
             await db.collection('users').doc(user.uid).set({
                 username: username,
-                email: email,
+                email: fakeEmail,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 score: 0
             });
 
             await user.updateProfile({ displayName: username });
 
-            localStorage.setItem('remembered_email', email); // Save for next time
+            localStorage.setItem('remembered_username', username); // Save for next time
             document.getElementById('view-login-modal').classList.add('hidden');
         } catch (error) {
             console.error("Register Error:", error);
@@ -3545,10 +3591,10 @@ const app = {
 
     getAuthErrorMessage(code) {
         switch (code) {
-            case 'auth/email-already-in-use': return "Bu e-posta zaten kullanılıyor.";
-            case 'auth/invalid-email': return "Geçersiz e-posta adresi.";
-            case 'auth/wrong-password': return "Şifre yanlış.";
-            case 'auth/user-not-found': return "Kullanıcı bulunamadı.";
+            case 'auth/email-already-in-use': return "Bu kullanıcı adı zaten kullanılıyor.";
+            case 'auth/invalid-email': return "Geçersiz kullanıcı adı formatı.";
+            case 'auth/wrong-password': return "Bir hata oluştu: Kullanıcı adı veya şifre hatalı.";
+            case 'auth/user-not-found': return "Bir hata oluştu: Kullanıcı adı veya şifre hatalı.";
             case 'auth/weak-password': return "Şifre çok zayıf.";
             case 'auth/operation-not-allowed': return "Giriş yöntemi kapalı.";
             case 'auth/network-request-failed': return "Bağlantı hatası.";
