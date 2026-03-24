@@ -2,7 +2,7 @@
  * İhsan's Gate — TTS Manager (Python Backend Edition)
  */
 
-class TTSManager {
+export class TTSManager {
     constructor() {
         // Cloud TTS URL — deploy sonrası buraya Render URL'nizi yazın
         this.cloudUrl = 'https://ihsansgate-tts.onrender.com';
@@ -25,8 +25,14 @@ class TTSManager {
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), timeoutMs);
             fetch(url, { signal: controller.signal })
-                .then(r => { clearTimeout(timer); resolve(r); })
-                .catch(e => { clearTimeout(timer); reject(e); });
+                .then((r) => {
+                    clearTimeout(timer);
+                    resolve(r);
+                })
+                .catch((e) => {
+                    clearTimeout(timer);
+                    reject(e);
+                });
         });
     }
 
@@ -53,7 +59,9 @@ class TTSManager {
                 console.log('[TTS] 🖥️ Yerel sunucuya bağlandı:', this.localUrl);
                 return;
             }
-        } catch (e) { /* local unavailable */ }
+        } catch (e) {
+            /* local unavailable */
+        }
 
         // Default to cloud URL anyway (it may come online later)
         this.proxyUrl = this.cloudUrl;
@@ -84,12 +92,12 @@ class TTSManager {
         }
 
         const audioUrl = `${this.proxyUrl}/api/tts?text=${encodeURIComponent(text)}&voice=${encodeURIComponent(v)}`;
-        
+
         // Create audio object but DO NOT PLAY
         const audio = new Audio(audioUrl);
         audio.preload = 'auto'; // Force buffer
         audio.load(); // Trigger load
-        
+
         this._addToCache(key, audio);
         console.log(`[TTS] 📥 Prefetch: '${text}' arka planda yükleniyor...`);
     }
@@ -114,7 +122,7 @@ class TTSManager {
         if (this.cache.has(key)) {
             console.log(`[TTS] 🚀 Cache'den oynatılıyor: '${text}'`);
             const audio = this.cache.get(key);
-            
+
             // Reuse cached audio
             this.activeRequestId++;
             const requestId = this.activeRequestId;
@@ -146,8 +154,8 @@ class TTSManager {
                     resolve(this._speakFresh(text, v, requestId));
                 };
 
-                audio.play().catch(e => {
-                    console.error("[TTS] Play error:", e);
+                audio.play().catch((e) => {
+                    console.error('[TTS] Play error:', e);
                     reject(e);
                 });
             });
@@ -162,9 +170,9 @@ class TTSManager {
         const key = `${text}|${voice}`;
         try {
             const audioUrl = `${this.proxyUrl}/api/tts?text=${encodeURIComponent(text)}&voice=${encodeURIComponent(voice)}`;
-            
+
             if (requestId !== this.activeRequestId) return;
-            
+
             // Create and Cache instantly
             const audio = new Audio(audioUrl);
             audio.preload = 'auto';
@@ -198,7 +206,7 @@ class TTSManager {
                 reject(new Error('Ses çalınamadı'));
             };
 
-            audio.play().catch(err => {
+            audio.play().catch((err) => {
                 if (requestId === this.activeRequestId) reject(err);
             });
         });
@@ -220,7 +228,7 @@ class TTSManager {
             try {
                 this.currentAudio.pause();
                 this.currentAudio.currentTime = 0;
-            } catch (e) { }
+            } catch (e) {}
             this.currentAudio = null;
         }
         this.isPlaying = false;

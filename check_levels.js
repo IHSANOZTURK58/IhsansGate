@@ -1,4 +1,3 @@
-
 const fs = require('fs');
 const path = require('path');
 
@@ -13,7 +12,7 @@ try {
     const end = content.lastIndexOf(']');
 
     if (start === -1 || end === -1) {
-        console.error("Could not find array brackets.");
+        console.error('Could not find array brackets.');
         process.exit(1);
     }
 
@@ -28,22 +27,21 @@ try {
 
     console.log(`Total Words: ${data.length}`);
 
-    const missingLevel = data.filter(w => !w.level);
+    const missingLevel = data.filter((w) => !w.level);
     console.log(`Words missing level: ${missingLevel.length}`);
 
     if (missingLevel.length > 0) {
-        console.log("First 5 missing level:", missingLevel.slice(0, 5));
+        console.log('First 5 missing level:', missingLevel.slice(0, 5));
     }
 
     // Count by level
     const counts = {};
-    data.forEach(w => {
+    data.forEach((w) => {
         if (w.level) {
             counts[w.level] = (counts[w.level] || 0) + 1;
         }
     });
-    console.log("Counts by Level:", counts);
-
+    console.log('Counts by Level:', counts);
 } catch (e) {
-    console.error("Error:", e.message);
+    console.error('Error:', e.message);
 }

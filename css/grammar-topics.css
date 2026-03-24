@@ -215,7 +215,7 @@
     background: rgba(0, 0, 0, 0.2);
 }
 
-.explanation-table th, 
+.explanation-table th,
 .explanation-table td {
     padding: 10px;
     text-align: left;
@@ -234,4 +234,3 @@
         max-height: 90vh !important;
     }
 }
-

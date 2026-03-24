@@ -10,12 +10,12 @@
 // But wait, the user said "siteyi yeniledim", implies it was working or they expect it to.
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCX_...", // Placeholder - User needs to fill this or I need to find it
-    authDomain: "ihsans-gate.firebaseapp.com",
-    projectId: "ihsans-gate",
-    storageBucket: "ihsans-gate.appspot.com",
-    messagingSenderId: "...",
-    appId: "..."
+    apiKey: 'AIzaSyCX_...', // Placeholder - User needs to fill this or I need to find it
+    authDomain: 'ihsans-gate.firebaseapp.com',
+    projectId: 'ihsans-gate',
+    storageBucket: 'ihsans-gate.appspot.com',
+    messagingSenderId: '...',
+    appId: '...'
 };
 
 // Initialize Firebase

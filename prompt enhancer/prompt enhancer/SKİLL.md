@@ -1,6 +1,4 @@
-
 ---
-
 ## Best Practices (Quick Reference)
 
 1. **Start with goal** - What are we building/fixing?
@@ -8,7 +6,6 @@
 3. **Each task verifiable** - Clear "done" criteria
 4. **Project-specific** - No copy-paste templates
 5. **Update as you go** - Mark `[x]` when complete
-
 ---
 
 ## When to Use

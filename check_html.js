@@ -4,8 +4,8 @@ const lines = content.split('\n');
 
 const targets = ['view-reading', 'reading-library', 'reading-reader', 'dictionary-search', 'dict-toast'];
 
-targets.forEach(target => {
-    const lineNum = lines.findIndex(line => line.includes(target));
+targets.forEach((target) => {
+    const lineNum = lines.findIndex((line) => line.includes(target));
     if (lineNum !== -1) {
         console.log(`\nFound ${target} at line ${lineNum + 1}`);
         console.log(`Context:`);

@@ -1,0 +1,30 @@
+import { Component } from '../Component.js';
+
+export class LandingView extends Component {
+    render() {
+        return `
+            <div id="view-landing" class="view active">
+                <div class="landing-container">
+                    <div class="landing-logo">
+                        <span class="logo-icon-lg">🔥</span>
+                        <h1>İhsans<span class="highlight">Gate</span></h1>
+                        <p class="subtitle">Profesyonel İngilizce Gelişim Platformu</p>
+                    </div>
+
+                    <div id="login-choices" class="landing-form">
+                        <div class="login-choices">
+                            <button class="btn btn-primary btn-large" onclick="app.enterDashboard()"
+                                style="width:100%;">
+                                🎮 Oyuna Başla
+                            </button>
+                            <button class="btn btn-secondary btn-large" style="margin-top: 1rem; width:100%;"
+                                onclick="app.checkAdminAuth()">
+                                🛡️ Yönetici Paneli
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+}

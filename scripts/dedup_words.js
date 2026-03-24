@@ -11,7 +11,7 @@ try {
     const content = fs.readFileSync(wordsPath, 'utf8');
     eval(content);
 } catch (e) {
-    console.error("Dosya okuma hatası:", e);
+    console.error('Dosya okuma hatası:', e);
     process.exit(1);
 }
 
@@ -22,13 +22,13 @@ console.log(`Toplam kelime sayısı (İşlem öncesi): ${allWords.length}`);
 const uniqueMap = new Map();
 const duplicates = [];
 
-allWords.forEach(item => {
+allWords.forEach((item) => {
     // Normalize word key: lowercase and trimmed
     const key = item.word.trim().toLowerCase();
 
     if (uniqueMap.has(key)) {
         duplicates.push(item.word);
-        // Optional: Merge levels or meanings if needed? 
+        // Optional: Merge levels or meanings if needed?
         // For now, keep the first one (usually the original manual entry is better than batch import if conflicting)
     } else {
         uniqueMap.set(key, item);
@@ -36,7 +36,7 @@ allWords.forEach(item => {
 });
 
 const cleanedWords = Array.from(uniqueMap.values());
-// Sort cleanly by ID or Word? 
+// Sort cleanly by ID or Word?
 // Original list was mixed. Let's keep it somewhat ordered but maybe just strictly valid is enough.
 // Let's sort alphabetically to make future diffs easier? Or by ID?
 // Many new words don't have IDs.
@@ -44,7 +44,7 @@ const cleanedWords = Array.from(uniqueMap.values());
 
 console.log(`Tekrar eden kelimeler: ${duplicates.length}`);
 if (duplicates.length > 0) {
-    console.log("Örnekler:", duplicates.slice(0, 5).join(', '));
+    console.log('Örnekler:', duplicates.slice(0, 5).join(', '));
 }
 
 console.log(`Temizlenmiş kelime sayısı: ${cleanedWords.length}`);

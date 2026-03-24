@@ -16,7 +16,7 @@ console.log(`Original dictionary size: ${originalLength}`);
 let newWordsCount = 0;
 
 // Load and append batches
-batches.forEach(batchFile => {
+batches.forEach((batchFile) => {
     const batchPath = path.join(__dirname, batchFile);
     if (fs.existsSync(batchPath)) {
         const batchContent = fs.readFileSync(batchPath, 'utf8');

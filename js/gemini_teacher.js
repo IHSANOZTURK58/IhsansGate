@@ -1,13 +1,12 @@
-
 // --- PRODUCTION-READY AI TEACHER LOGIC ---
-const GeminiTeacher = {
-    apiKey: "YOUR_KEY_HERE", // User must replace this
-    model: "gemma-3-27b-it", // Using Gemma for massive 14.4K limit
-    fallbackModel: "gemini-flash-latest", // Standard fallback
+export const GeminiTeacher = {
+    apiKey: 'YOUR_KEY_HERE', // User must replace this
+    model: 'gemma-3-27b-it', // Using Gemma for massive 14.4K limit
+    fallbackModel: 'gemini-flash-latest', // Standard fallback
 
     state: {
         currentQuestion: null, // {source, target, answers, hint}
-        questionQueue: [],    // Local cache for batch fetching
+        questionQueue: [], // Local cache for batch fetching
         score: 0,
         mode: 'EN_TR', // or 'TR_EN'
         level: 'Mixed', // Default
@@ -17,31 +16,58 @@ const GeminiTeacher = {
     // Topics for variety
     // Massive Topic List for Variety
     topics: [
-        "Daily Routine", "Travel & Adventure", "Food & Cooking", "Work & Business",
-        "Hobbies & Sports", "Movies & Music", "Technology", "Family & Friends",
-        "Shopping", "Weather", "Emotions & Feelings", "Health & Fitness",
-        "Pop Culture", "Science & Nature", "History & Culture", "Economy & Finance",
-        "Politics & Social Issues", "Art & Literature", "Space & Universe",
-        "Psychology & Human Behavior", "Modern Problems", "Futuristic Tech",
-        "Ancient Civilizations", "Philosophy & Ethics", "Mystery & Crime",
-        "Fantasy & Mythology", "Environment & Sustainability", "Education & Learning",
-        "Law & Justice", "Media & Journalism", "Animals & Wildlife", "Architecture",
-        "Fashion & Design", "Dating & Relationships", "Job Interviews",
-        "Emergency Situations", "Mythological Creatures", "Time Travel Scenarios"
+        'Daily Routine',
+        'Travel & Adventure',
+        'Food & Cooking',
+        'Work & Business',
+        'Hobbies & Sports',
+        'Movies & Music',
+        'Technology',
+        'Family & Friends',
+        'Shopping',
+        'Weather',
+        'Emotions & Feelings',
+        'Health & Fitness',
+        'Pop Culture',
+        'Science & Nature',
+        'History & Culture',
+        'Economy & Finance',
+        'Politics & Social Issues',
+        'Art & Literature',
+        'Space & Universe',
+        'Psychology & Human Behavior',
+        'Modern Problems',
+        'Futuristic Tech',
+        'Ancient Civilizations',
+        'Philosophy & Ethics',
+        'Mystery & Crime',
+        'Fantasy & Mythology',
+        'Environment & Sustainability',
+        'Education & Learning',
+        'Law & Justice',
+        'Media & Journalism',
+        'Animals & Wildlife',
+        'Architecture',
+        'Fashion & Design',
+        'Dating & Relationships',
+        'Job Interviews',
+        'Emergency Situations',
+        'Mythological Creatures',
+        'Time Travel Scenarios'
     ],
 
     // Level-specific characteristics
     levelGuides: {
-        "A1": "Beginner: Use basic nouns, present simple (to be, have, do). Short, clear sentences. No complex grammar.",
-        "A2": "Elementary: Use past simple, future (going to), basic adjectives. Daily life scenarios.",
-        "B1": "Intermediate: Use present perfect, modal verbs (should, could), conjunctions (because, although).",
-        "B2": "Upper Intermediate: Use conditionals (types 1, 2), passive voice, phrasal verbs, more abstract topics.",
-        "C1": "Advanced: Use complex syntax, idioms, professional/academic vocabulary, subtle nuances.",
-        "C2": "Proficiency: Near-native level. Use sophisticated idioms, rare vocabulary, literary styles, complex nested structures."
+        A1: 'Beginner: Use basic nouns, present simple (to be, have, do). Short, clear sentences. No complex grammar.',
+        A2: 'Elementary: Use past simple, future (going to), basic adjectives. Daily life scenarios.',
+        B1: 'Intermediate: Use present perfect, modal verbs (should, could), conjunctions (because, although).',
+        B2: 'Upper Intermediate: Use conditionals (types 1, 2), passive voice, phrasal verbs, more abstract topics.',
+        C1: 'Advanced: Use complex syntax, idioms, professional/academic vocabulary, subtle nuances.',
+        C2: 'Proficiency: Near-native level. Use sophisticated idioms, rare vocabulary, literary styles, complex nested structures.'
     },
 
     init() {
-        console.log("Initializing AI Teacher...");
+        console.log('Initializing AI Teacher...');
         // Use existing app navigation
         app.state.previousView = app.state.currentView;
         app.state.currentView = 'ai-teacher';
@@ -59,12 +85,12 @@ const GeminiTeacher = {
         // ai-score removed from HTML as requested
 
         // Reset Level Select to default (using state)
-        this.state.level = "Mixed";
-        this.state.mode = "EN_TR";
+        this.state.level = 'Mixed';
+        this.state.mode = 'EN_TR';
 
         // Initial UI Update for Chips could be handled here or just assume HTML defaults
         // Reset Level Chips to Brightened Theme
-        document.querySelectorAll('.ai-level-chip').forEach(c => {
+        document.querySelectorAll('.ai-level-chip').forEach((c) => {
             if (c.dataset.value === 'Mixed') {
                 c.classList.add('active');
                 c.style.background = 'rgba(139, 92, 246, 0.4)';
@@ -83,7 +109,7 @@ const GeminiTeacher = {
         });
 
         // Reset Mode Chips to Brightened Theme
-        document.querySelectorAll('.ai-selection-chip').forEach(c => {
+        document.querySelectorAll('.ai-selection-chip').forEach((c) => {
             const label = c.querySelector('div:last-child');
             if (c.dataset.value === 'EN_TR') {
                 c.classList.add('active');
@@ -106,7 +132,7 @@ const GeminiTeacher = {
     setStartMode(mode, el) {
         this.state.mode = mode;
         // Toggle UI Active State
-        document.querySelectorAll('.ai-selection-chip').forEach(c => {
+        document.querySelectorAll('.ai-selection-chip').forEach((c) => {
             const label = c.querySelector('div:last-child');
             if (c === el) {
                 c.classList.add('active');
@@ -127,7 +153,7 @@ const GeminiTeacher = {
     setStartLevel(level, el) {
         this.state.level = level;
         // Toggle UI Active State
-        document.querySelectorAll('.ai-level-chip').forEach(c => {
+        document.querySelectorAll('.ai-level-chip').forEach((c) => {
             if (c === el) {
                 c.classList.add('active');
                 c.style.background = level === 'Mixed' ? 'rgba(139, 92, 246, 0.5)' : 'rgba(255,255,255,0.2)';
@@ -148,8 +174,13 @@ const GeminiTeacher = {
 
     getLevelColor(level) {
         const colors = {
-            'Mixed': '#c084fc', 'A1': '#86efac', 'A2': '#93c5fd',
-            'B1': '#fde047', 'B2': '#fdba74', 'C1': '#fca5a5', 'C2': '#d8b4fe'
+            Mixed: '#c084fc',
+            A1: '#86efac',
+            A2: '#93c5fd',
+            B1: '#fde047',
+            B2: '#fdba74',
+            C1: '#fca5a5',
+            C2: '#d8b4fe'
         };
         return colors[level];
     },
@@ -163,8 +194,13 @@ const GeminiTeacher = {
         const badge = document.getElementById('ai-active-level-badge');
         if (badge) {
             const levelMap = {
-                "Mixed": "Karışık", "A1": "A1 Başlangıç", "A2": "A2 Temel",
-                "B1": "B1 Orta", "B2": "B2 Orta-İleri", "C1": "C1 İleri", "C2": "C2 Uzman"
+                Mixed: 'Karışık',
+                A1: 'A1 Başlangıç',
+                A2: 'A2 Temel',
+                B1: 'B1 Orta',
+                B2: 'B2 Orta-İleri',
+                C1: 'C1 İleri',
+                C2: 'C2 Uzman'
             };
             badge.textContent = `Seviye: ${levelMap[this.state.level] || this.state.level}`;
         }
@@ -172,7 +208,7 @@ const GeminiTeacher = {
         // Update mode indicator in header
         const btnText = document.getElementById('ai-mode-text');
         if (btnText) {
-            btnText.textContent = this.state.mode === 'EN_TR' ? "🇬🇧 → 🇹🇷" : "🇹🇷 → 🇬🇧";
+            btnText.textContent = this.state.mode === 'EN_TR' ? '🇬🇧 → 🇹🇷' : '🇹🇷 → 🇬🇧';
         }
 
         this.nextQuestion();
@@ -190,14 +226,14 @@ const GeminiTeacher = {
 
         // Check Local Queue First for Instant Loading
         if (this.state.questionQueue.length > 0) {
-            console.log("[AI Teacher] Serving from local queue...");
+            console.log('[AI Teacher] Serving from local queue...');
             const nextData = this.state.questionQueue.shift();
             this.state.currentQuestion = nextData;
             this.updateQuestionUI(nextData);
 
             // Background Buffer Check: If queue is getting low (<=1), fetch more in background
             if (this.state.questionQueue.length <= 1) {
-                console.log("[AI Teacher] Queue low, pre-fetching more in background...");
+                console.log('[AI Teacher] Queue low, pre-fetching more in background...');
                 this.fetchQuestionAPI(true); // silent fetch
             }
             return;
@@ -214,9 +250,9 @@ const GeminiTeacher = {
         const btnCheck = document.getElementById('btn-ai-check');
         const btnNext = document.getElementById('btn-ai-next');
         const btnExplain = document.getElementById('btn-ai-show-explanation');
-        sourceEl.textContent = "Hazırlanıyor...";
+        sourceEl.textContent = 'Hazırlanıyor...';
         sourceEl.classList.add('pulse');
-        inputEl.value = "";
+        inputEl.value = '';
         inputEl.disabled = true;
         hintEl.style.opacity = '0';
 
@@ -253,8 +289,8 @@ const GeminiTeacher = {
                 this.updateQuestionUI(nextData);
             }
         } catch (error) {
-            console.error("API Error:", error);
-            sourceEl.textContent = "Hata oluştu. Lütfen tekrar dene.";
+            console.error('API Error:', error);
+            sourceEl.textContent = 'Hata oluştu. Lütfen tekrar dene.';
             this.state.isLoading = false;
         } finally {
             this.stopLoadingAnimation();
@@ -271,12 +307,13 @@ const GeminiTeacher = {
         const labelEl = document.querySelector('.label-sm');
 
         if (labelEl) {
-            labelEl.textContent = this.state.mode === 'EN_TR' ? "İngilizce → Türkçe Çeviri:" : "Türkçe → İngilizce Çeviri:";
+            labelEl.textContent =
+                this.state.mode === 'EN_TR' ? 'İngilizce → Türkçe Çeviri:' : 'Türkçe → İngilizce Çeviri:';
         }
 
         sourceEl.textContent = q.source_text;
         sourceEl.classList.remove('pulse');
-        inputEl.value = "";
+        inputEl.value = '';
         inputEl.disabled = false;
         inputEl.focus();
 
@@ -292,11 +329,11 @@ const GeminiTeacher = {
 
     startLoadingAnimation(el) {
         const messages = [
-            "Öğretmen hazırlık yapıyor...",
-            "Cümle yapısı kurgulanıyor...",
-            "Gramer kuralları taranıyor...",
-            "Senin için yeni kelimeler seçiliyor...",
-            "Hazırlık tamamlanıyor..."
+            'Öğretmen hazırlık yapıyor...',
+            'Cümle yapısı kurgulanıyor...',
+            'Gramer kuralları taranıyor...',
+            'Senin için yeni kelimeler seçiliyor...',
+            'Hazırlık tamamlanıyor...'
         ];
         let i = 0;
         this.loadingInterval = setInterval(() => {
@@ -313,9 +350,10 @@ const GeminiTeacher = {
         if (!isSilent) this.state.isLoading = true;
 
         const randomTopic = this.topics[Math.floor(Math.random() * this.topics.length)];
-        const targetLevel = this.state.level === 'Mixed' ?
-            ["A1", "A2", "B1", "B2", "C1"][Math.floor(Math.random() * 5)] :
-            this.state.level;
+        const targetLevel =
+            this.state.level === 'Mixed'
+                ? ['A1', 'A2', 'B1', 'B2', 'C1'][Math.floor(Math.random() * 5)]
+                : this.state.level;
 
         const prompt = `
         You are an expert English teacher.
@@ -372,45 +410,49 @@ const GeminiTeacher = {
                     }
                 }
                 const errData = await response.json().catch(() => ({}));
-                throw new Error("Quota or Server Error");
+                throw new Error('Quota or Server Error');
             }
 
             const data = await response.json();
             const text = data.candidates[0].content.parts[0].text;
-            const jsonStr = text.replace(/```json/g, '').replace(/```/g, '').trim();
+            const jsonStr = text
+                .replace(/```json/g, '')
+                .replace(/```/g, '')
+                .trim();
 
             let rawData;
             try {
                 rawData = JSON.parse(jsonStr);
             } catch (pErr) {
-                console.error("JSON Parse Error. Data:", jsonStr);
-                throw new Error("AI yanıtı okunamadı.");
+                console.error('JSON Parse Error. Data:', jsonStr);
+                throw new Error('AI yanıtı okunamadı.');
             }
 
             const questions = Array.isArray(rawData) ? rawData : [rawData];
 
-            questions.forEach(qItem => {
+            questions.forEach((qItem) => {
                 const fb = qItem.feedback || {};
-                const grammarTip = fb.grammar_tip || "Not yok.";
+                const grammarTip = fb.grammar_tip || 'Not yok.';
 
                 this.state.questionQueue.push({
                     source_text: qItem.q_text,
                     target_text_main: qItem.a_text,
                     acceptable_answers: [qItem.a_text, ...(qItem.alternatives || [])],
-                    hint: grammarTip.substring(0, 50) + "...",
+                    hint: grammarTip.substring(0, 50) + '...',
                     feedback: {
                         grammar_tip: grammarTip,
                         vocabulary: fb.vocabulary || [],
-                        warning: fb.warning || ""
+                        warning: fb.warning || ''
                     }
                 });
             });
 
-            console.log(`[AI Teacher] ${questions.length} questions added to queue. Total: ${this.state.questionQueue.length}`);
+            console.log(
+                `[AI Teacher] ${questions.length} questions added to queue. Total: ${this.state.questionQueue.length}`
+            );
             if (!isSilent) this.state.isLoading = false;
-
         } catch (error) {
-            console.error("API Error:", error);
+            console.error('API Error:', error);
             if (!isSilent) throw error;
         }
     },
@@ -437,13 +479,18 @@ const GeminiTeacher = {
         if (!userVal) return;
 
         // Client-Side Validation Logic
-        const normalize = (str) => str.replace(/[.,!?'"]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const normalize = (str) =>
+            str
+                .replace(/[.,!?'"]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .toLowerCase();
 
         const normalizedUser = normalize(userVal);
         const correctOptions = this.state.currentQuestion.acceptable_answers.map(normalize);
 
         // Check exact match or inclusion
-        const isCorrect = correctOptions.some(opt => opt === normalizedUser || opt.includes(normalizedUser));
+        const isCorrect = correctOptions.some((opt) => opt === normalizedUser || opt.includes(normalizedUser));
 
         this.showFeedback(isCorrect);
     },
@@ -469,8 +516,8 @@ const GeminiTeacher = {
 
         if (isCorrect) {
             this.state.score++;
-            feedbackEl.textContent = "✅ Harika! Doğru Cevap.";
-            feedbackEl.className = "feedback-message success";
+            feedbackEl.textContent = '✅ Harika! Doğru Cevap.';
+            feedbackEl.className = 'feedback-message success';
 
             grammarTipEl.textContent = q.feedback.grammar_tip;
             warningTipEl.classList.add('hidden');
@@ -479,7 +526,7 @@ const GeminiTeacher = {
         } else {
             const correctAnswer = q.target_text_main || q.acceptable_answers[0];
             feedbackEl.innerHTML = `❌ Malesef.<br>Doğrusu: <b>${correctAnswer}</b>`;
-            feedbackEl.className = "feedback-message error";
+            feedbackEl.className = 'feedback-message error';
 
             grammarTipEl.textContent = q.feedback.grammar_tip;
 
@@ -494,7 +541,7 @@ const GeminiTeacher = {
             if (btnExplain) btnExplain.classList.remove('hidden');
         }
 
-        // Always show explanation button for better learning? 
+        // Always show explanation button for better learning?
         // Let's stick to "wrong" as requested, but maybe showing it always is better.
         // The user specifically mentioned "yanlış dediğimizde".
         if (!isCorrect && btnExplain) btnExplain.classList.remove('hidden');
@@ -531,7 +578,7 @@ const GeminiTeacher = {
 
         if (!vocab || vocab.length === 0) return;
 
-        vocab.forEach(item => {
+        vocab.forEach((item) => {
             const chip = document.createElement('div');
             chip.style.cssText = `
                 background: rgba(139, 92, 246, 0.2);

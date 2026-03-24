@@ -5,25 +5,14 @@
 // Firebase Compat Mode - No imports needed
 // Uses global 'firebase' object
 
-// Config
-const firebaseConfig = {
-    apiKey: "AIzaSyAj6zt-30z_BX5jIM8JQW8kbK6qHSatZwQ",
-    authDomain: "ihsansgate.firebaseapp.com",
-    projectId: "ihsansgate",
-    storageBucket: "ihsansgate.firebasestorage.app",
-    messagingSenderId: "731110929518",
-    appId: "1:731110929518:web:723c3dd71d593c5e04627f",
-    measurementId: "G-S2FEZYQRR4"
-};
-
-// Initialize Firebase (Compat)
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
-window.db = db; // Expose for debugging
+import { db, auth } from '../src/services/firebase.js';
+import * as AuthService from '../src/services/auth.js';
+import * as VocabService from '../src/services/vocabulary.js';
+import * as GameService from '../src/core/game.js';
+window.db = db;
 window.auth = auth;
 
-const app = {
+export const app = {
     // Config
     POINTS_PER_QUESTION: 5,
     MAX_LEADERBOARD: 5, // Request: Limit to top 5
@@ -66,8 +55,6 @@ const app = {
         adventureLives: 3,
         levelWords: [],
 
-
-
         // Navigation History
         previousView: null,
 
@@ -109,9 +96,6 @@ const app = {
         this.render();
         this.renderLeaderboard();
 
-
-
-
         // Authenticate
         this.authenticateAndListen();
 
@@ -120,9 +104,6 @@ const app = {
             window.ttsManager.warmup();
         }
     },
-
-
-
 
     loadData() {
         const storageKey = this.state.isAdmin ? 'vocab_game_admin_data' : 'vocab_game_data_v2';
@@ -163,7 +144,7 @@ const app = {
             if (!window.WORD_DATA._merged) {
                 window.WORD_DATA = window.WORD_DATA.concat(window.BASIC_VOCAB);
                 window.WORD_DATA._merged = true;
-                console.log("Basic Vocabulary Merged:", window.BASIC_VOCAB.length);
+                console.log('Basic Vocabulary Merged:', window.BASIC_VOCAB.length);
             }
         }
 
@@ -213,11 +194,17 @@ const app = {
         const user = firebase.auth().currentUser;
         if (user) {
             // Updated: Source of Truth (Progress/Cupa)
-            db.collection('users').doc(user.uid).set({
-                score: this.state.score,
-                username: this.state.playerName || user.displayName,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true }).catch(e => console.error('Users write failed:', e));
+            db.collection('users')
+                .doc(user.uid)
+                .set(
+                    {
+                        score: this.state.score,
+                        username: this.state.playerName || user.displayName,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    },
+                    { merge: true }
+                )
+                .catch((e) => console.error('Users write failed:', e));
 
             // CRITICAL: We NO LONGER update 'scores' collection here.
             // 'scores' is only for Rush Mode (Acele Modu) records.
@@ -250,21 +237,27 @@ const app = {
                 if (!fsIcon) return;
 
                 // 1. Primary: API State
-                const isApiFull = !!(document.fullscreenElement || document.webkitFullscreenElement ||
-                    document.mozFullScreenElement || document.msFullscreenElement);
+                const isApiFull = !!(
+                    document.fullscreenElement ||
+                    document.webkitFullscreenElement ||
+                    document.mozFullScreenElement ||
+                    document.msFullscreenElement
+                );
 
                 // 2. Secondary: Dimensional Check (F12 resilient)
-                const isDimFull = window.innerHeight >= (screen.height - 20) && window.innerWidth >= (screen.width - 20);
+                const isDimFull = window.innerHeight >= screen.height - 20 && window.innerWidth >= screen.width - 20;
 
                 const reallyFull = isApiFull || isDimFull;
                 fsIcon.textContent = reallyFull ? '❐' : '⛶';
             });
         };
 
-        ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange', 'resize'].forEach(evt => {
-            window.addEventListener(evt, syncFullscreenUI);
-            document.addEventListener(evt, syncFullscreenUI);
-        });
+        ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange', 'resize'].forEach(
+            (evt) => {
+                window.addEventListener(evt, syncFullscreenUI);
+                document.addEventListener(evt, syncFullscreenUI);
+            }
+        );
     },
 
     // Navigation
@@ -292,10 +285,10 @@ const app = {
         // We keep 'gemini_api_key' and 'gemini_model' for convenience.
 
         try {
-            await firebase.auth().signOut();
-            console.log("User signed out successfully.");
+            await AuthService.logoutUser();
+            console.log('User signed out successfully.');
         } catch (e) {
-            console.error("SignOut Error:", e);
+            console.error('SignOut Error:', e);
         }
 
         this.showLanding();
@@ -318,11 +311,6 @@ const app = {
         this.render();
     },
 
-    retryAdventure() {
-        this.closeGameOverModal();
-        this.startGame(); // Restart the current game mode
-    },
-
     showLanding() {
         const wasAdmin = this.state.isAdmin;
         this.state.isAdmin = false; // Reset admin status on landing
@@ -330,13 +318,13 @@ const app = {
 
         // If we were in an admin session, reload regular data
         if (wasAdmin) {
-            console.log("Exiting Admin Session, restoring regular data...");
+            console.log('Exiting Admin Session, restoring regular data...');
             this.loadData();
         }
 
         // Reset login state to choices
         const choices = document.getElementById('login-choices');
-        const form = document.getElementById('user-login-form');
+        const form = document.getElementById('standard-auth-view'); // Unified ID
         if (choices) choices.classList.remove('hidden');
         if (form) form.classList.add('hidden');
 
@@ -346,8 +334,8 @@ const app = {
         if (adminBtn) adminBtn.style.display = 'none';
         if (logoutBtn) logoutBtn.style.display = 'none';
 
-        // Reset name display
-        const displayName = document.getElementById('display-user-name');
+        // Reset name display (Safe check)
+        const displayName = document.getElementById('display-user-name-header');
         if (displayName) displayName.textContent = 'Misafir';
 
         // Refresh stats/ui
@@ -362,8 +350,6 @@ const app = {
         this.render();
     },
 
-
-
     checkAdminAuth() {
         // If already admin, go directly to admin panel
         if (this.state.isAdmin) {
@@ -371,15 +357,13 @@ const app = {
             return;
         }
         this.state.pendingPasswordAction = 'adminAccess';
-        this.openPasswordModal("Yönetici Paneline girmek için parolayı girin:");
+        this.openPasswordModal('Yönetici Paneline girmek için parolayı girin:');
     },
-
-
 
     selectAvatar(id) {
         this.state.selectedAvatar = id;
         // Update selection UI in grid
-        document.querySelectorAll('.avatar-option').forEach(el => el.classList.remove('selected'));
+        document.querySelectorAll('.avatar-option').forEach((el) => el.classList.remove('selected'));
         const selected = document.getElementById(`av-opt-${id}`);
         if (selected) selected.classList.add('selected');
 
@@ -433,7 +417,7 @@ const app = {
         auth.onAuthStateChanged(async (user) => {
             if (user && !user.isAnonymous) {
                 // Real User Logged In
-                console.log("Logged in as:", user.email);
+                console.log('Logged in as:', user.email);
 
                 // OPTIMIZATION: Check for cached username to load instantly
                 const cachedName = localStorage.getItem('cached_username');
@@ -456,7 +440,7 @@ const app = {
                         const doc = await db.collection('users').doc(user.uid).get();
                         if (doc.exists) username = doc.data().username;
                     } catch (e) {
-                        console.error("Profile fetch error", e);
+                        console.error('Profile fetch error', e);
                     }
                 }
 
@@ -481,20 +465,22 @@ const app = {
                     // SYNC: Fetch from both 'users' (profile) and 'scores' (leaderboard)
                     // Use the HIGHER value to heal any discrepancies
                     try {
-                        console.log("DEBUG: Attempting to fetch scores for UID:", user.uid);
+                        console.log('DEBUG: Attempting to fetch scores for UID:', user.uid);
                         const [userDoc, scoreDoc] = await Promise.all([
                             db.collection('users').doc(user.uid).get(),
                             db.collection('scores').doc(user.uid).get()
                         ]);
 
                         let finalScore = 0;
-                        console.log("DEBUG: Profile Score:", userDoc.exists ? userDoc.data().score : 'N/A');
-                        console.log("DEBUG: Leaderboard Score:", scoreDoc.exists ? scoreDoc.data().score : 'N/A');
+                        console.log('DEBUG: Profile Score:', userDoc.exists ? userDoc.data().score : 'N/A');
+                        console.log('DEBUG: Leaderboard Score:', scoreDoc.exists ? scoreDoc.data().score : 'N/A');
 
-                        if (userDoc.exists && userDoc.data().score) finalScore = Math.max(finalScore, Number(userDoc.data().score) || 0);
-                        if (scoreDoc.exists && scoreDoc.data().score) finalScore = Math.max(finalScore, Number(scoreDoc.data().score) || 0);
+                        if (userDoc.exists && userDoc.data().score)
+                            finalScore = Math.max(finalScore, Number(userDoc.data().score) || 0);
+                        if (scoreDoc.exists && scoreDoc.data().score)
+                            finalScore = Math.max(finalScore, Number(scoreDoc.data().score) || 0);
 
-                        console.log("DEBUG: Calculated Final Score:", finalScore);
+                        console.log('DEBUG: Calculated Final Score:', finalScore);
 
                         if (finalScore > 0) {
                             console.log(`Synced Score: ${finalScore} (Healed from Profile/Leaderboard)`);
@@ -507,13 +493,11 @@ const app = {
                             }
                         }
                     } catch (e) {
-                        console.error("Score sync error:", e);
+                        console.error('Score sync error:', e);
                     }
                 }
-
-
             } else {
-                console.log("No active user. Waiting for login.");
+                console.log('No active user. Waiting for login.');
                 // Reset header and welcome even if no user
                 const headerName = document.getElementById('display-user-name-header');
                 const welcomeName = document.getElementById('display-user-name-welcome');
@@ -529,27 +513,26 @@ const app = {
         this.setupWordListener();
     },
 
-    showDashboard() {
-        this.render('view-dashboard');
-    },
-
     toggleFullscreen() {
         const d = document;
         const de = d.documentElement;
 
-        const isCurrentlyFull = !!(d.fullscreenElement || d.webkitFullscreenElement ||
-            d.mozFullScreenElement || d.msFullscreenElement);
+        const isCurrentlyFull = !!(
+            d.fullscreenElement ||
+            d.webkitFullscreenElement ||
+            d.mozFullScreenElement ||
+            d.msFullscreenElement
+        );
 
         if (!isCurrentlyFull) {
             // Attempt all prefixes
-            const request = de.requestFullscreen || de.webkitRequestFullscreen ||
-                de.mozRequestFullScreen || de.msRequestFullscreen;
-            if (request) request.call(de).catch(() => { });
+            const request =
+                de.requestFullscreen || de.webkitRequestFullscreen || de.mozRequestFullScreen || de.msRequestFullscreen;
+            if (request) request.call(de).catch(() => {});
         } else {
             // Attempt all exit prefixes
-            const exit = d.exitFullscreen || d.webkitExitFullscreen ||
-                d.mozCancelFullScreen || d.msExitFullscreen;
-            if (exit) exit.call(d).catch(() => { });
+            const exit = d.exitFullscreen || d.webkitExitFullscreen || d.mozCancelFullScreen || d.msExitFullscreen;
+            if (exit) exit.call(d).catch(() => {});
         }
     },
 
@@ -559,61 +542,50 @@ const app = {
         this.renderLeaderboard();
         // Force refresh leaderboard data
         if (this.state.leaderboard.length === 0) {
-            // trigger re-fetch if empty? 
+            // trigger re-fetch if empty?
             // listener should handle it.
         }
     },
 
     setupWordListener() {
-        db.collection("words")
-            .onSnapshot((snapshot) => {
-                this.state.globalWords = [];
-                snapshot.forEach((doc) => {
-                    // Safe handling of data
-                    const d = doc.data();
-                    if (d.word && d.meaning) {
-                        this.state.globalWords.push({
-                            id: doc.id, // Use firestore ID
-                            word: d.word,
-                            meaning: d.meaning,
-                            level: d.level || 'A1'
-                        });
-                    }
-                });
-                console.log("Global words loaded:", this.state.globalWords.length);
-                // Refresh list if open
-                if (this.state.currentView === 'list') this.renderList();
-            });
+        if (this.unsubscribeWords) this.unsubscribeWords();
+        this.unsubscribeWords = VocabService.setupWordListener((words) => {
+            this.state.globalWords = words;
+            console.log('Global words loaded:', this.state.globalWords.length);
+            if (this.state.currentView === 'list') this.renderList();
+        });
     },
 
     setupFirebaseListener() {
         // Read from 'scores' collection for Rush Mode Leaderboard (Modes View)
-        db.collection("scores")
-            .orderBy("score", "desc")
+        db.collection('scores')
+            .orderBy('score', 'desc')
             .limit(this.MAX_LEADERBOARD)
-            .onSnapshot((snapshot) => {
-                this.state.leaderboard = [];
-                snapshot.forEach((doc) => {
-                    this.state.leaderboard.push(doc.data());
-                });
-                this.renderLeaderboard();
-            }, (error) => {
-                console.error("Leaderboard Error:", error);
-                const tbody = document.getElementById('leaderboard-body');
-                if (tbody) {
-                    if (error.code === 'permission-denied') {
-                        tbody.innerHTML = '<tr><td colspan="3" style="color:red; text-align:center;">Yetki Hatası (Erişim Reddedildi)</td></tr>';
-                    } else {
-                        tbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Hata: ${error.message}</td></tr>`;
+            .onSnapshot(
+                (snapshot) => {
+                    this.state.leaderboard = [];
+                    snapshot.forEach((doc) => {
+                        this.state.leaderboard.push(doc.data());
+                    });
+                    this.renderLeaderboard();
+                },
+                (error) => {
+                    console.error('Leaderboard Error:', error);
+                    const tbody = document.getElementById('leaderboard-body');
+                    if (tbody) {
+                        if (error.code === 'permission-denied') {
+                            tbody.innerHTML =
+                                '<tr><td colspan="3" style="color:red; text-align:center;">Yetki Hatası (Erişim Reddedildi)</td></tr>';
+                        } else {
+                            tbody.innerHTML = `<tr><td colspan="3" style="color:red; text-align:center;">Hata: ${error.message}</td></tr>`;
+                        }
                     }
                 }
-            });
+            );
     },
 
     getAllWords() {
-        const staticData = window.WORD_DATA || [];
-        // Combine all sources: Static + Local(Legacy) + Global(Firebase)
-        return [...staticData, ...this.state.customWords, ...this.state.globalWords];
+        return VocabService.getAllWords(this.state.customWords, this.state.globalWords);
     },
 
     showLevelMap() {
@@ -664,14 +636,14 @@ const app = {
         container.style.position = 'relative';
 
         // 2. Draw SVG Path (Smooth Snake)
-        const svgNs = "http://www.w3.org/2000/svg";
-        const svg = document.createElementNS(svgNs, "svg");
-        svg.style.position = "absolute";
+        const svgNs = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(svgNs, 'svg');
+        svg.style.position = 'absolute';
         svg.style.top = 0;
         svg.style.left = 0;
-        svg.style.width = "100%";
-        svg.style.height = "100%";
-        svg.style.pointerEvents = "none";
+        svg.style.width = '100%';
+        svg.style.height = '100%';
+        svg.style.pointerEvents = 'none';
 
         // Center X is 0 in viewBox. Width is 400.
         // We set preserveAspectRatio to "none" to force the SVG to stretch exactly like our % based divs?
@@ -690,11 +662,11 @@ const app = {
         // Force SVG to scale its width fully to the container, regardless of aspect ratio.
         // preserveAspectRatio="none" is the only way to guarantee -200 maps to 0px and 200 maps to widthpx.
         // BUT it distorts stroke width.
-        // ALTERNATIVE: Don't use viewBox width 400. Use 100? 
+        // ALTERNATIVE: Don't use viewBox width 400. Use 100?
         // Best: use preserveAspectRatio="none" BUT make the path stroke vector-effect="non-scaling-stroke".
 
-        svg.setAttribute("viewBox", `-200 0 400 ${totalHeight}`);
-        svg.setAttribute("preserveAspectRatio", "none");
+        svg.setAttribute('viewBox', `-200 0 400 ${totalHeight}`);
+        svg.setAttribute('preserveAspectRatio', 'none');
 
         // Generate Path Data (Cubic Bezier)
         let pathD = `M ${details[0].x} ${details[0].y}`;
@@ -709,15 +681,15 @@ const app = {
         }
 
         // Background Path
-        const pathBg = document.createElementNS(svgNs, "path");
-        pathBg.setAttribute("d", pathD);
-        pathBg.setAttribute("stroke", "rgba(255,255,255,0.3)"); // White for dark sky visibility
-        pathBg.setAttribute("stroke-width", "4"); // Thinner because "none" might scale it up horizontally?
+        const pathBg = document.createElementNS(svgNs, 'path');
+        pathBg.setAttribute('d', pathD);
+        pathBg.setAttribute('stroke', 'rgba(255,255,255,0.3)'); // White for dark sky visibility
+        pathBg.setAttribute('stroke-width', '4'); // Thinner because "none" might scale it up horizontally?
         // vector-effect ensures stroke remains constant pixels!
-        pathBg.setAttribute("vector-effect", "non-scaling-stroke");
-        pathBg.setAttribute("fill", "none");
-        pathBg.setAttribute("stroke-linecap", "round");
-        pathBg.setAttribute("stroke-dasharray", "15 15");
+        pathBg.setAttribute('vector-effect', 'non-scaling-stroke');
+        pathBg.setAttribute('fill', 'none');
+        pathBg.setAttribute('stroke-linecap', 'round');
+        pathBg.setAttribute('stroke-dasharray', '15 15');
         svg.appendChild(pathBg);
 
         // Unlocked Path
@@ -734,21 +706,21 @@ const app = {
                 unlockedD += ` C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${p2.x} ${p2.y}`;
             }
 
-            const pathDone = document.createElementNS(svgNs, "path");
-            pathDone.setAttribute("d", unlockedD);
-            pathDone.setAttribute("stroke", "var(--neon-gold)");
-            pathDone.setAttribute("stroke-width", "4");
-            pathDone.setAttribute("vector-effect", "non-scaling-stroke");
-            pathDone.setAttribute("fill", "none");
-            pathDone.setAttribute("stroke-linecap", "round");
-            pathDone.style.filter = "drop-shadow(0 0 5px rgba(245, 158, 11, 0.5))";
+            const pathDone = document.createElementNS(svgNs, 'path');
+            pathDone.setAttribute('d', unlockedD);
+            pathDone.setAttribute('stroke', 'var(--neon-gold)');
+            pathDone.setAttribute('stroke-width', '4');
+            pathDone.setAttribute('vector-effect', 'non-scaling-stroke');
+            pathDone.setAttribute('fill', 'none');
+            pathDone.setAttribute('stroke-linecap', 'round');
+            pathDone.style.filter = 'drop-shadow(0 0 5px rgba(245, 158, 11, 0.5))';
             svg.appendChild(pathDone);
         }
 
         container.appendChild(svg);
 
         // 3. Render Nodes
-        details.forEach(pt => {
+        details.forEach((pt) => {
             const node = document.createElement('div');
             node.className = 'level-node';
             node.textContent = pt.level;
@@ -766,7 +738,7 @@ const app = {
             node.style.left = `${leftPercent}%`;
             node.style.top = `${pt.y}px`;
             node.style.transform = 'translate(-50%, -50%)';
-            node.style.zIndex = "10";
+            node.style.zIndex = '10';
 
             // Info for Tooltip
             const difficulty = this.getDifficultyForLevel(pt.level).join('/');
@@ -778,13 +750,15 @@ const app = {
                 node.className += ' unlocked completed';
                 node.onclick = () => this.startGame('adventure', pt.level);
                 // Checkmark for finished
-                node.innerHTML += '<span style="position:absolute; bottom:-10px; right:-5px; font-size:14px; background:white; border-radius:50%; padding:2px;">✅</span>';
+                node.innerHTML +=
+                    '<span style="position:absolute; bottom:-10px; right:-5px; font-size:14px; background:white; border-radius:50%; padding:2px;">✅</span>';
             } else if (pt.level === maxUnl) {
                 node.className += ' current';
                 node.onclick = () => this.startGame('adventure', pt.level);
             } else {
                 node.className += ' locked';
-                node.innerHTML += '<span style="position:absolute; bottom:-12px; font-size:18px; filter:drop-shadow(0 0 3px rgba(255,255,255,0.5));">🔒</span>';
+                node.innerHTML +=
+                    '<span style="position:absolute; bottom:-12px; font-size:18px; filter:drop-shadow(0 0 3px rgba(255,255,255,0.5));">🔒</span>';
             }
 
             container.appendChild(node);
@@ -809,7 +783,6 @@ const app = {
         }
     },
 
-
     enterDashboard() {
         // If not logged in, show Login Modal
         if (!auth.currentUser || auth.currentUser.isAnonymous) {
@@ -818,8 +791,6 @@ const app = {
             this.showDashboard();
         }
     },
-
-
 
     showDashboard() {
         if (this.state.timerInterval) clearInterval(this.state.timerInterval);
@@ -835,7 +806,7 @@ const app = {
         const targetMode = mode || this.state.gameMode || 'survival';
 
         if (!this.state.playerName) {
-            alert("⚠️ Oturum hatası. Lütfen giriş sayfasına dönün.");
+            alert('⚠️ Oturum hatası. Lütfen giriş sayfasına dönün.');
             this.showLanding();
             return;
         }
@@ -862,7 +833,7 @@ const app = {
             this.startTimer();
         } else if (targetMode === 'favorites') {
             if (this.state.favorites.length < 4) {
-                alert("⚠️ Favoriler modunu açmak için en az 4 kelimeyi favorilemelisiniz!");
+                alert('⚠️ Favoriler modunu açmak için en az 4 kelimeyi favorilemelisiniz!');
                 this.showDashboard();
                 return;
             }
@@ -911,7 +882,9 @@ const app = {
     updateTimerUI() {
         const timerEl = document.getElementById('game-timer');
         if (timerEl) {
-            const m = Math.floor(this.state.timer / 60).toString().padStart(2, '0');
+            const m = Math.floor(this.state.timer / 60)
+                .toString()
+                .padStart(2, '0');
             const s = (this.state.timer % 60).toString().padStart(2, '0');
             timerEl.textContent = `${m}:${s}`;
 
@@ -933,12 +906,12 @@ const app = {
 
     resetProgress() {
         this.state.pendingPasswordAction = 'reset';
-        this.openPasswordModal("İlerlemeyi sıfırlamak için parolayı girin:");
+        this.openPasswordModal('İlerlemeyi sıfırlamak için parolayı girin:');
     },
 
     resetTrophyLeaderboard() {
         this.state.pendingPasswordAction = 'resetTrophy';
-        this.openPasswordModal("Kupa tablosunu sıfırlamak için parolayı girin:");
+        this.openPasswordModal('Kupa tablosunu sıfırlamak için parolayı girin:');
     },
 
     openPasswordModal(message) {
@@ -980,9 +953,9 @@ const app = {
                 this.performShowAddWord();
             } else if (action === 'adminAccess') {
                 // ISOLATE ADMIN SESSION
-                console.log("Switching to Admin Session...");
+                console.log('Switching to Admin Session...');
                 this.state.isAdmin = true;
-                this.state.playerName = "Yönetici";
+                this.state.playerName = 'Yönetici';
                 this.state.currentView = 'admin';
 
                 // Load Admin-specific data (Trophies: 0 if first time)
@@ -996,24 +969,24 @@ const app = {
 
                 this.render();
             }
-
         } else {
-            alert("⚠️ Yanlış Parola!");
+            alert('⚠️ Yanlış Parola!');
             if (input) {
                 input.value = '';
                 input.focus();
                 input.style.border = '2px solid #ef4444';
-                setTimeout(() => input.style.border = '', 2000);
+                setTimeout(() => (input.style.border = ''), 2000);
             }
         }
     },
 
     async performReset() {
-        if (!confirm("⚠️ DİKKAT: Bu işlem ACELE MODU rekor listesini temizleyecek!\n\nDevam etmek istiyor musun?")) return;
+        if (!confirm('⚠️ DİKKAT: Bu işlem ACELE MODU rekor listesini temizleyecek!\n\nDevam etmek istiyor musun?'))
+            return;
 
         try {
             // Get all scores
-            const snapshot = await db.collection("scores").get();
+            const snapshot = await db.collection('scores').get();
 
             // Batch delete
             const batch = db.batch();
@@ -1022,28 +995,33 @@ const app = {
             });
             await batch.commit();
 
-            alert("✅ Acele Modu Rekor Tablosu Başarıyla Temizlendi!");
+            alert('✅ Acele Modu Rekor Tablosu Başarıyla Temizlendi!');
         } catch (e) {
-            console.error("Error clearing scores: ", e);
-            alert("Hata oluştu: " + e.message);
+            console.error('Error clearing scores: ', e);
+            alert('Hata oluştu: ' + e.message);
         }
     },
 
     async performTrophyReset() {
-        if (!confirm("⚠️ DİKKAT: Bu işlem TÜM KUPA LİSTESİNİ ve TÜM OYUNCU PUANLARI ile REKORLARI sıfırlayacak!\n\nBu işlem geri alınamaz. Devam etmek istiyor musunuz?")) return;
+        if (
+            !confirm(
+                '⚠️ DİKKAT: Bu işlem TÜM KUPA LİSTESİNİ ve TÜM OYUNCU PUANLARI ile REKORLARI sıfırlayacak!\n\nBu işlem geri alınamaz. Devam etmek istiyor musunuz?'
+            )
+        )
+            return;
 
         try {
             const batch = db.batch();
 
             // 1. Clear Acele Modu Records
-            const scoresSnapshot = await db.collection("scores").get();
-            scoresSnapshot.docs.forEach(doc => {
+            const scoresSnapshot = await db.collection('scores').get();
+            scoresSnapshot.docs.forEach((doc) => {
                 batch.delete(doc.ref);
             });
 
             // 2. Reset All User Scores to 0 (Global XP/Cupa)
-            const usersSnapshot = await db.collection("users").get();
-            usersSnapshot.docs.forEach(doc => {
+            const usersSnapshot = await db.collection('users').get();
+            usersSnapshot.docs.forEach((doc) => {
                 batch.update(doc.ref, {
                     score: 0,
                     rushHighScore: 0
@@ -1059,62 +1037,24 @@ const app = {
             this.saveData(); // Sync local storage
             this.updateHeaderStats();
 
-            alert("✅ Kupa tablosu ve tüm oyuncu rekorları başarıyla sıfırlandı!");
+            alert('✅ Kupa tablosu ve tüm oyuncu rekorları başarıyla sıfırlandı!');
         } catch (e) {
-            console.error("Error resetting leaderboard:", e);
-            alert("Sıfırlama sırasında bir hata oluştu: " + e.message);
+            console.error('Error resetting leaderboard:', e);
+            alert('Sıfırlama sırasında bir hata oluştu: ' + e.message);
         }
     },
 
     // ADVENTURE MODE LOGIC
     getDifficultyForLevel(lvl) {
-        const allWords = this.getAllWords();
-        const totalLevels = Math.floor(allWords.length / 50);
-
-        if (lvl <= totalLevels * 0.3) return ['A1', 'A2'];
-        if (lvl <= totalLevels * 0.7) return ['B1', 'B2'];
-        return ['C1', 'C2'];
+        return GameService.getDifficultyForLevel(this.getAllWords().length, lvl);
     },
 
     getFallbackDifficulty(targetDiffs) {
-        // Simple fallback chain: C -> B -> A
-        if (targetDiffs.includes('C1') || targetDiffs.includes('C2')) return ['B1', 'B2'];
-        if (targetDiffs.includes('B1') || targetDiffs.includes('B2')) return ['A1', 'A2'];
-        return ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']; // Desperate fallback
+        return GameService.getFallbackDifficulty(targetDiffs);
     },
 
     generateLevelWords(level) {
-        const requiredCount = 50;
-        let pool = this.getAllWords();
-
-        // 1. Difficulty weight map
-        const weights = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6 };
-
-        // 2. Sort pool by Level weight, then Deterministically by ID
-        pool.sort((a, b) => {
-            const wa = weights[a.level || 'A1'] || 1;
-            const wb = weights[b.level || 'A1'] || 1;
-            if (wa !== wb) return wa - wb;
-            return String(a.id).localeCompare(String(b.id));
-        });
-
-        // 3. Selection: Take a unique slice for this level
-        // Level 1 -> [0, 50), Level 2 -> [50, 100), etc.
-        const startIndex = (level - 1) * requiredCount;
-
-        // Safety: If level is too high, loop back but ideally we stop at maxLevel
-        const realStart = startIndex % pool.length;
-        let selectedWords = pool.slice(realStart, realStart + requiredCount);
-
-        // Fallback: If slice is short (at end of pool), fill from start
-        if (selectedWords.length < requiredCount) {
-            selectedWords = selectedWords.concat(pool.slice(0, requiredCount - selectedWords.length));
-        }
-
-        // 4. PRESENTATION: Shuffle order for gameplay variety (non-seeded)
-        this.shuffleArray(selectedWords);
-
-        return selectedWords;
+        return GameService.generateLevelWords(this.getAllWords(), level);
     },
 
     startAdventureLevel() {
@@ -1188,7 +1128,7 @@ const app = {
         while (distractors.length < 3) {
             const idx = Math.floor(Math.random() * allWords.length);
             const w = allWords[idx];
-            if (w.id !== word.id && !distractors.some(d => d.id === w.id)) {
+            if (w.id !== word.id && !distractors.some((d) => d.id === w.id)) {
                 distractors.push(w);
             }
         }
@@ -1231,9 +1171,9 @@ const app = {
 
         // Configure Restart Button for Adventure Mode
         const btnRetry = modal.querySelector('.btn-primary');
-        // We now use the HTML onclick="app.retryAdventure()" 
+        // We now use the HTML onclick="app.retryAdventure()"
         // Just update the text to be specific
-        btnRetry.textContent = "Tekrar Dene ↺";
+        btnRetry.textContent = 'Tekrar Dene ↺';
 
         // Ensure Secondary Button is "Harita" (Adventure Mode Specific)
         const secondaryBtn = modal.querySelector('.btn-secondary');
@@ -1260,9 +1200,6 @@ const app = {
         }
     },
 
-
-
-
     // Game Logic
     nextQuestion() {
         // Redirect for Adventure Mode
@@ -1274,10 +1211,13 @@ const app = {
         let data = this.getAllWords();
 
         if (this.state.gameMode === 'favorites') {
-            data = data.filter(w => this.state.favorites.includes(w.id));
+            data = data.filter((w) => this.state.favorites.includes(w.id));
         }
 
-        if (!data || data.length < 4) { console.error("Data error or insufficient favorites"); return; }
+        if (!data || data.length < 4) {
+            console.error('Data error or insufficient favorites');
+            return;
+        }
         const targetIndex = Math.floor(Math.random() * data.length);
         this.state.currentWord = data[targetIndex];
 
@@ -1294,7 +1234,7 @@ const app = {
 
         const indices = [targetIndex, ...distractors];
         this.shuffleArray(indices);
-        this.state.currentOptions = indices.map(idx => data[idx]);
+        this.state.currentOptions = indices.map((idx) => data[idx]);
 
         this.renderGameQuestion();
     },
@@ -1319,7 +1259,7 @@ const app = {
         const container = document.getElementById('options-container');
         container.innerHTML = '';
 
-        this.state.currentOptions.forEach(opt => {
+        this.state.currentOptions.forEach((opt) => {
             const btn = document.createElement('button');
             btn.className = 'option-btn';
             btn.textContent = opt.meaning;
@@ -1327,14 +1267,13 @@ const app = {
             btn.onclick = () => this.handleAnswer(opt, btn);
             container.appendChild(btn);
         });
-
     },
 
     handleChoice(option, btn) {
         if (this.state.isProcessing) return;
         this.state.isProcessing = true;
 
-        const isCorrect = (option === this.state.currentWord.meaning);
+        const isCorrect = option === this.state.currentWord.meaning;
 
         if (isCorrect) {
             this.playSound('correct');
@@ -1360,7 +1299,7 @@ const app = {
         if (!this.state.currentWord) return;
 
         const allBtns = document.querySelectorAll('.option-btn');
-        allBtns.forEach(b => b.disabled = true);
+        allBtns.forEach((b) => (b.disabled = true));
 
         const isCorrect = selectedOption.id === this.state.currentWord.id;
 
@@ -1370,7 +1309,7 @@ const app = {
             // Unified Scoring: +1 for Vocab (Global XP/Cupa)
             this.state.score += 1;
 
-            // Differentiated Scoring: 
+            // Differentiated Scoring:
             // Rush Mode Rank gets +5, all other modes get +1 on their session score
             if (this.state.gameMode === 'rush') {
                 this.state.sessionScore += 5;
@@ -1400,7 +1339,7 @@ const app = {
             btnElement.classList.add('wrong');
             this.playSound('wrong'); // SFX
             // Show correct
-            allBtns.forEach(b => {
+            allBtns.forEach((b) => {
                 if (parseInt(b.dataset.id) === this.state.currentWord.id) b.classList.add('correct');
             });
 
@@ -1419,10 +1358,10 @@ const app = {
                 }
             } else if (this.state.gameMode === 'rush') {
                 this.state.lives--;
-                this.renderLives(); // Need to implement/update this helper or do it in renderGameQuestion? 
+                this.renderLives(); // Need to implement/update this helper or do it in renderGameQuestion?
                 // Better to update UI immediately
                 const livesEl = document.getElementById('game-lives');
-                if (livesEl) livesEl.textContent = "❤️".repeat(this.state.lives);
+                if (livesEl) livesEl.textContent = '❤️'.repeat(this.state.lives);
 
                 if (this.state.lives <= 0) {
                     setTimeout(() => this.endGame(), 800);
@@ -1433,7 +1372,7 @@ const app = {
                 this.state.lives--;
                 this.renderLives();
                 const livesEl = document.getElementById('game-lives');
-                if (livesEl) livesEl.textContent = "❤️".repeat(this.state.lives);
+                if (livesEl) livesEl.textContent = '❤️'.repeat(this.state.lives);
 
                 if (this.state.lives <= 0) {
                     setTimeout(() => this.endGame(), 800);
@@ -1452,7 +1391,6 @@ const app = {
 
         // Add Score to Wallet
         if (this.state.score > 0) {
-
             // Check High Score
             if (this.state.score > this.state.highScore) {
                 this.state.highScore = this.state.score;
@@ -1466,12 +1404,18 @@ const app = {
 
         this.saveData();
 
-        document.getElementById('final-score').textContent = this.state.gameMode === 'rush' ? this.state.sessionScore : this.state.score;
-
+        const finalScoreEl = document.getElementById('final-score');
+        if (finalScoreEl) {
+            finalScoreEl.textContent = this.state.gameMode === 'rush' ? this.state.sessionScore : this.state.score;
+        }
         // Show correct header
         const title = document.querySelector('#view-gameover h3');
         if (title) {
-            title.textContent = isTimeOut ? "⏰ Süre Doldu!" : (this.state.lives <= 0 ? "💔 Canın Kalmadı!" : "😵 Oyun Bitti!");
+            title.textContent = isTimeOut
+                ? '⏰ Süre Doldu!'
+                : this.state.lives <= 0
+                  ? '💔 Canın Kalmadı!'
+                  : '😵 Oyun Bitti!';
         }
 
         // Hide old input area definitely
@@ -1505,19 +1449,13 @@ const app = {
         }
     },
 
-    quitGame() {
-        if (this.state.timerInterval) clearInterval(this.state.timerInterval);
-        if (this.state.gameMode === 'adventure') {
-            this.showLevelMap();
-        } else {
-            this.openModeSelection();
-        }
-    },
+
+
 
     // Helper needed for Rush Mode UI
     renderLives() {
         const livesEl = document.getElementById('game-lives');
-        if (livesEl) livesEl.textContent = "❤️".repeat(this.state.lives);
+        if (livesEl) livesEl.textContent = '❤️'.repeat(this.state.lives);
     },
 
     updateLevelUI() {
@@ -1530,7 +1468,7 @@ const app = {
         if (this.state.gameMode === 'adventure') {
             if (livesEl) {
                 livesEl.classList.remove('hidden');
-                livesEl.textContent = "❤️".repeat(this.state.adventureLives);
+                livesEl.textContent = '❤️'.repeat(this.state.adventureLives);
             }
             if (levelInfo) {
                 levelInfo.classList.remove('hidden');
@@ -1544,7 +1482,6 @@ const app = {
             if (levelIndicator) levelIndicator.classList.add('hidden'); // HIDE
         }
     },
-
 
     // Favorites & List
     toggleFavorite(id) {
@@ -1582,13 +1519,15 @@ const app = {
 
         const search = this.state.filters.search.toLowerCase();
         if (search) {
-            filtered = filtered.filter(w => w.word.toLowerCase().includes(search) || w.meaning.toLowerCase().includes(search));
+            filtered = filtered.filter(
+                (w) => w.word.toLowerCase().includes(search) || w.meaning.toLowerCase().includes(search)
+            );
         }
         if (this.state.filters.showFavsOnly) {
-            filtered = filtered.filter(w => this.state.favorites.includes(w.id));
+            filtered = filtered.filter((w) => this.state.favorites.includes(w.id));
         }
         if (this.state.filters.level && this.state.filters.level !== 'all') {
-            filtered = filtered.filter(w => w.level === this.state.filters.level);
+            filtered = filtered.filter((w) => w.level === this.state.filters.level);
         }
 
         const displayList = filtered.slice(0, 100);
@@ -1598,7 +1537,7 @@ const app = {
             return;
         }
 
-        displayList.forEach(w => {
+        displayList.forEach((w) => {
             const isFav = this.state.favorites.includes(w.id);
             const item = document.createElement('div');
             item.className = 'word-item';
@@ -1630,7 +1569,7 @@ const app = {
     // Add Custom Word Logic
     showAddWord() {
         this.state.pendingPasswordAction = 'addWord';
-        this.openPasswordModal("Yeni kelime eklemek için parolayı girin:");
+        this.openPasswordModal('Yeni kelime eklemek için parolayı girin:');
     },
 
     performShowAddWord() {
@@ -1641,10 +1580,6 @@ const app = {
         document.getElementById('new-word-tr').value = '';
         this.selectLevel('A1'); // Default Reset
     },
-
-
-
-
 
     // --- GLOBAL LEADERBOARD (CUPS) ---
     async openGlobalLeaderboard() {
@@ -1657,10 +1592,7 @@ const app = {
         list.innerHTML = '<li class="loading-state">Yükleniyor...</li>';
 
         try {
-            const snapshot = await db.collection("users")
-                .orderBy("score", "desc")
-                .limit(10)
-                .get();
+            const snapshot = await db.collection('users').orderBy('score', 'desc').limit(10).get();
 
             if (snapshot.empty) {
                 list.innerHTML = '<li class="loading-state">Henüz kupa kazanan yok.</li>';
@@ -1670,12 +1602,13 @@ const app = {
             list.innerHTML = '';
             let rank = 1;
 
-            snapshot.forEach(doc => {
+            snapshot.forEach((doc) => {
                 const data = doc.data();
-                const isMe = (data.username === this.state.playerName);
+                const isMe = data.username === this.state.playerName;
                 const medals = ['🥇', '🥈', '🥉'];
                 let rankDisplay = rank;
-                if (rank <= 3) rankDisplay = `<span class="rank-medal" style="font-size:1.5rem;">${medals[rank - 1]}</span>`;
+                if (rank <= 3)
+                    rankDisplay = `<span class="rank-medal" style="font-size:1.5rem;">${medals[rank - 1]}</span>`;
 
                 const li = document.createElement('li');
                 li.className = `leaderboard-item ${isMe ? 'active' : ''}`;
@@ -1687,14 +1620,11 @@ const app = {
                 list.appendChild(li);
                 rank++;
             });
-
         } catch (error) {
-            console.error("Global Leaderboard Error:", error);
+            console.error('Global Leaderboard Error:', error);
             list.innerHTML = `<li class="loading-state" style="color:#ef4444;">Hata: ${error.message}</li>`;
         }
     },
-
-
 
     // Legacy Rush Mode Leaderboard (Restored & Kept Separate)
     openLeaderboard() {
@@ -1712,11 +1642,11 @@ const app = {
     selectLevel(lvl, btnElement) {
         this.state.selectedAddLevel = lvl;
         if (btnElement) {
-            document.querySelectorAll('.lvl-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.lvl-btn').forEach((b) => b.classList.remove('active'));
             btnElement.classList.add('active');
         } else {
             // Programmatic reset
-            document.querySelectorAll('.lvl-btn').forEach(b => {
+            document.querySelectorAll('.lvl-btn').forEach((b) => {
                 b.classList.remove('active');
                 if (b.textContent === lvl) b.classList.add('active');
             });
@@ -1736,12 +1666,9 @@ const app = {
         const medals = ['🥇', '🥈', '🥉'];
 
         this.state.leaderboard.forEach((item, index) => {
-            let rankDisplay = index + 1;
-            if (index < 3) {
-                rankDisplay = `<span style="font-size:1.2rem">${medals[index]}</span>`;
-            } else {
-                rankDisplay = `<span class="lb-rank">${index + 1}</span>`;
-            }
+            const rankDisplay = index < 3
+                ? `<span style="font-size:1.2rem">${medals[index]}</span>`
+                : `<span class="lb-rank">${index + 1}</span>`;
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -1761,31 +1688,23 @@ const app = {
         const meaning = meanInput.value.trim();
 
         if (!word || !meaning) {
-            alert("Lütfen hem kelimeyi hem okunuşunu girin.");
+            alert('Lütfen hem kelimeyi hem okunuşunu girin.');
             return;
         }
 
         try {
-            await db.collection("words").add({
-                word: word,
-                meaning: meaning,
-                level: this.state.selectedAddLevel,
-                addedBy: this.state.playerName || 'Admin',
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            await VocabService.addWordToGlobal(word, meaning, this.state.selectedAddLevel, this.state.playerName);
 
-            alert("✅ Kelime Global Veritabanına Eklendi! (Herkes görecek)");
+            alert('✅ Kelime Global Veritabanına Eklendi! (Herkes görecek)');
 
             wordInput.value = '';
             meanInput.value = '';
             wordInput.focus();
         } catch (e) {
-            console.error("Error adding word:", e);
-            alert("Hata: " + e.message);
+            console.error('Error adding word:', e);
+            alert('Hata: ' + e.message);
         }
     },
-
-
 
     updateScoreDisplay() {
         document.getElementById('current-score').textContent = this.state.score;
@@ -1797,7 +1716,7 @@ const app = {
     },
 
     setListFilter(type) {
-        this.state.filters.showFavsOnly = (type === 'favs');
+        this.state.filters.showFavsOnly = type === 'favs';
         if (type === 'favs') {
             document.getElementById('filter-favs').classList.add('active');
             document.getElementById('filter-all').classList.remove('active');
@@ -1813,54 +1732,31 @@ const app = {
 
         // Update UI
         const chips = document.querySelectorAll('.level-chip');
-        chips.forEach(c => c.classList.remove('active'));
+        chips.forEach((c) => c.classList.remove('active'));
         if (btn) btn.classList.add('active');
 
         this.renderList();
     },
 
-    toggleGameFavorite() {
-        if (!this.state.currentWord) return;
-        this.toggleFavorite(this.state.currentWord.id);
-        const starBtn = document.getElementById('game-star-btn');
-        const isFav = this.state.favorites.includes(this.state.currentWord.id);
-        if (isFav) {
-            starBtn.classList.add('active');
-            starBtn.querySelector('svg').setAttribute('fill', 'currentColor');
-        } else {
-            starBtn.classList.remove('active');
-            starBtn.querySelector('svg').setAttribute('fill', 'none');
-        }
-    },
 
-    // Updated Shuffle: Supports Optional Seed for Deterministic Levels
+
+
     shuffleArray(array, seed = null) {
-        // Simple seeded PRNG (Mulberry32)
-        let random = Math.random; // Default
-        if (seed !== null) {
-            let s = seed + 0x6D2B79F5;
-            random = () => {
-                let t = s += 0x6D2B79F5;
-                t = Math.imul(t ^ (t >>> 15), t | 1);
-                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-            };
-        }
-
-        for (let i = array.length - 1; i > 0; i--) {
-            const j = Math.floor(random() * (i + 1));
-            [array[i], array[j]] = [array[j], array[i]];
-        }
+        // Mutates the array in place as expected by previous calls
+        const shuffled = GameService.shuffleArray(array);
+        for (let i = 0; i < array.length; i++) array[i] = shuffled[i];
         return array;
     },
 
-
     render() {
-        // Force close overlays
-        document.getElementById('view-gameover').classList.add('hidden');
-        document.getElementById('view-password-modal').classList.add('hidden');
+        // Force close overlays (Safe checks)
+        const gameOverModal = document.getElementById('view-gameover');
+        if (gameOverModal) gameOverModal.classList.add('hidden');
 
-        document.querySelectorAll('.view').forEach(el => el.classList.add('hidden'));
+        const pwdModal = document.getElementById('view-password-modal');
+        if (pwdModal) pwdModal.classList.add('hidden');
+
+        document.querySelectorAll('.view').forEach((el) => el.classList.add('hidden'));
         const activeView = document.getElementById(`view-${this.state.currentView}`);
         if (activeView) activeView.classList.remove('hidden');
 
@@ -1869,14 +1765,18 @@ const app = {
             const timerEl = document.getElementById('game-timer');
             const livesEl = document.getElementById('game-lives');
 
-            if (this.state.gameMode === 'rush' || this.state.gameMode === 'favorites' || this.state.gameMode === 'adventure') {
+            if (
+                this.state.gameMode === 'rush' ||
+                this.state.gameMode === 'favorites' ||
+                this.state.gameMode === 'adventure'
+            ) {
                 if (timerEl) timerEl.classList.toggle('hidden', this.state.gameMode !== 'rush');
                 if (livesEl) {
                     livesEl.classList.remove('hidden');
                     // For Adventure, updateLevelUI handles text, but we ensure it's visible here.
                     // For others, renderLives handles it.
                     if (this.state.gameMode !== 'adventure') this.renderLives();
-                    else livesEl.textContent = "❤️".repeat(this.state.adventureLives || 3);
+                    else livesEl.textContent = '❤️'.repeat(this.state.adventureLives || 3);
                 }
             } else {
                 if (timerEl) timerEl.classList.add('hidden');
@@ -1896,7 +1796,7 @@ const app = {
             // We use rushHighScore which is updated in handleAnswer
 
             // 1. Update User Profile (Source of Truth for XP)
-            await db.collection("users").doc(uid).update({
+            await db.collection('users').doc(uid).update({
                 score: this.state.score, // Total XP
                 rushHighScore: this.state.rushHighScore, // Personal Best in Rush
                 timestamp: firebase.firestore.FieldValue.serverTimestamp()
@@ -1904,21 +1804,25 @@ const app = {
 
             // 2. Update Leaderboard (Dedicated Best Scores)
             // Use .doc(uid).set to ensure UNIQUE entries per player
-            await db.collection("scores").doc(uid).set({
-                name: this.state.playerName,
-                uid: uid,
-                score: this.state.rushHighScore, // Only save the BEST score
-                date: new Date().toLocaleDateString('tr-TR'),
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+            await db
+                .collection('scores')
+                .doc(uid)
+                .set(
+                    {
+                        name: this.state.playerName,
+                        uid: uid,
+                        score: this.state.rushHighScore, // Only save the BEST score
+                        date: new Date().toLocaleDateString('tr-TR'),
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    },
+                    { merge: true }
+                );
 
-            console.log("Rush Record synced to Profile & Leaderboard!");
+            console.log('Rush Record synced to Profile & Leaderboard!');
         } catch (e) {
-            console.error("Error syncing High Score: ", e);
+            console.error('Error syncing High Score: ', e);
         }
     },
-
-
 
     // Audio Logic
     initMusic() {
@@ -1926,7 +1830,7 @@ const app = {
         const storedVol = localStorage.getItem('music_volume');
 
         // Default true if not set (null), otherwise parse string
-        this.state.isMusicPlaying = storedSetting === null ? true : (storedSetting === 'true');
+        this.state.isMusicPlaying = storedSetting === null ? true : storedSetting === 'true';
         this.state.musicVolume = storedVol ? parseFloat(storedVol) : 0.3;
 
         const audio = document.getElementById('bg-music');
@@ -1941,11 +1845,15 @@ const app = {
                 // We'll try to play, if it fails, we wait for first click
                 const playPromise = audio.play();
                 if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        console.log("Autoplay prevented. Waiting for interaction.");
-                        document.addEventListener('click', () => {
-                            if (this.state.isMusicPlaying) audio.play();
-                        }, { once: true });
+                    playPromise.catch((error) => {
+                        console.log('Autoplay prevented. Waiting for interaction.');
+                        document.addEventListener(
+                            'click',
+                            () => {
+                                if (this.state.isMusicPlaying) audio.play();
+                            },
+                            { once: true }
+                        );
                     });
                 }
             }
@@ -1967,7 +1875,7 @@ const app = {
         this.state.isMusicPlaying = !this.state.isMusicPlaying;
 
         if (this.state.isMusicPlaying) {
-            audio.play().catch(e => console.log(e));
+            audio.play().catch((e) => console.log(e));
         } else {
             audio.pause();
         }
@@ -1990,7 +1898,7 @@ const app = {
             const AudioContext = window.AudioContext || window.webkitAudioContext;
             this.sfxCtx = new AudioContext();
         } catch (e) {
-            console.error("Web Audio API not supported", e);
+            console.error('Web Audio API not supported', e);
         }
     },
 
@@ -2054,8 +1962,6 @@ const app = {
         }
     },
 
-
-
     // --- WRITING MODULE (New) ---
     openWritingModes() {
         this.state.previousView = this.state.currentView;
@@ -2077,7 +1983,7 @@ const app = {
     startWritingMode() {
         // SCRAMBLE MODE (Legacy)
         if (!this.state.playerName) {
-            alert("⚠️ Önce giriş yapmalısınız.");
+            alert('⚠️ Önce giriş yapmalısınız.');
             this.showLanding();
             return;
         }
@@ -2087,9 +1993,6 @@ const app = {
         this.render();
         this.nextWritingQuestion();
     },
-
-
-
 
     nextWritingQuestion() {
         const allWords = this.getAllWords();
@@ -2149,7 +2052,7 @@ const app = {
         if (item.used) return;
 
         // Find first empty slot
-        const emptyIndex = this.state.writingInput.findIndex(val => val === null);
+        const emptyIndex = this.state.writingInput.findIndex((val) => val === null);
         if (emptyIndex === -1) return; // Full
 
         // Place letter
@@ -2161,7 +2064,7 @@ const app = {
 
         // Auto-check if full?
         if (emptyIndex === this.state.writingInput.length - 1) {
-            // Check immediately or wait for button? 
+            // Check immediately or wait for button?
             // Better wait for button or auto-check? Let's wait for button or auto-check.
             // Let's auto-check for smooth flow?
             // this.checkWritingAnswer();
@@ -2215,9 +2118,7 @@ const app = {
         const key = e.key.toLowerCase();
         // Allow Turkish characters too
         if (key.length === 1 && /[a-zçğıöşü ]/i.test(key)) {
-            const item = this.state.writingPool.find(
-                p => !p.used && p.char.toLowerCase() === key
-            );
+            const item = this.state.writingPool.find((p) => !p.used && p.char.toLowerCase() === key);
 
             if (item) {
                 this.handleLetterClick(item);
@@ -2227,7 +2128,7 @@ const app = {
 
     clearWritingSlots() {
         this.state.writingInput.fill(null);
-        this.state.writingPool.forEach(i => i.used = false);
+        this.state.writingPool.forEach((i) => (i.used = false));
         this.renderWritingBoard();
     },
 
@@ -2235,16 +2136,16 @@ const app = {
         // Check if word is complete
         if (this.state.writingInput.includes(null)) {
             const fb = document.getElementById('writing-feedback');
-            fb.textContent = "Kelime tamamlanmadı!";
-            fb.style.color = "#ef4444";
-            setTimeout(() => fb.textContent = '', 1500);
+            fb.textContent = 'Kelime tamamlanmadı!';
+            fb.style.color = '#ef4444';
+            setTimeout(() => (fb.textContent = ''), 1500);
             return;
         }
 
         // Get formed word
-        const formedWord = this.state.writingInput.map(i => i.char).join('');
+        const formedWord = this.state.writingInput.map((i) => i.char).join('');
         const targetWord = this.state.currentWritingWord.word.toUpperCase();
-        const isCorrect = (formedWord === targetWord);
+        const isCorrect = formedWord === targetWord;
 
         if (isCorrect) {
             this.playSound('correct');
@@ -2259,34 +2160,33 @@ const app = {
 
             // Visual feedback
             const slots = document.querySelectorAll('.writing-slot');
-            slots.forEach(s => {
+            slots.forEach((s) => {
                 s.classList.add('correct-anim');
                 s.style.borderColor = '#22c55e';
             });
 
             const fb = document.getElementById('writing-feedback');
-            fb.textContent = "DOĞRU! 🎉 (+1 Puan)";
-            fb.style.color = "#22c55e";
+            fb.textContent = 'DOĞRU! 🎉 (+1 Puan)';
+            fb.style.color = '#22c55e';
 
             setTimeout(() => {
                 this.nextWritingQuestion();
             }, 500);
-
         } else {
             // Wrong answer
             this.playSound('wrong');
             const fb = document.getElementById('writing-feedback');
-            fb.textContent = "YANLIŞ! Tekrar dene.";
-            fb.style.color = "#ef4444";
+            fb.textContent = 'YANLIŞ! Tekrar dene.';
+            fb.style.color = '#ef4444';
 
             const slots = document.querySelectorAll('.writing-slot');
-            slots.forEach(s => {
+            slots.forEach((s) => {
                 s.classList.add('wrong-anim');
                 s.style.borderColor = '#ef4444';
             });
 
             setTimeout(() => {
-                slots.forEach(s => {
+                slots.forEach((s) => {
                     s.classList.remove('wrong-anim');
                     s.style.borderColor = '';
                 });
@@ -2308,14 +2208,14 @@ const app = {
         if (!window.GRAMMAR_DATA) return;
 
         const cards = document.querySelectorAll('.grammar-topic-card');
-        cards.forEach(card => {
+        cards.forEach((card) => {
             const onclick = card.getAttribute('onclick');
             if (onclick && onclick.includes("app.startGrammarMode('")) {
                 // Extract topic ID: app.startGrammarMode('tenses') -> tenses
                 const topicId = onclick.split("'")[1];
 
                 // Count questions
-                const count = window.GRAMMAR_DATA.filter(q => q.topic_id === topicId).length;
+                const count = window.GRAMMAR_DATA.filter((q) => q.topic_id === topicId).length;
 
                 // Update UI
                 const countSpan = card.querySelector('.topic-count');
@@ -2343,7 +2243,6 @@ const app = {
         this.state.grammarScore = 0;
         this.state.grammarScore = 0;
 
-
         // Find topic title for display
         const topicCard = document.querySelector(`.grammar-topic-card[onclick="app.startGrammarMode('${topic}')"]`);
         const title = topicCard ? topicCard.querySelector('h3').textContent : topic;
@@ -2351,15 +2250,15 @@ const app = {
 
         // Filter questions
         if (!window.GRAMMAR_DATA) {
-            console.error("Grammar data not loaded!");
-            alert("Dil bilgisi verileri yüklenemedi.");
+            console.error('Grammar data not loaded!');
+            alert('Dil bilgisi verileri yüklenemedi.');
             return;
         }
 
-        const questions = window.GRAMMAR_DATA.filter(q => q.topic_id === topic);
+        const questions = window.GRAMMAR_DATA.filter((q) => q.topic_id === topic);
 
         if (questions.length === 0) {
-            alert("Bu konu için henüz soru hazırlanmadı.");
+            alert('Bu konu için henüz soru hazırlanmadı.');
             return;
         }
 
@@ -2378,9 +2277,9 @@ const app = {
         const bodyEl = document.getElementById('explanation-body');
 
         if (!window.GRAMMAR_EXPLANATIONS || !window.GRAMMAR_EXPLANATIONS[topicId]) {
-            console.warn("Explanation not found for:", topicId);
-            titleEl.textContent = "Hazırlanıyor...";
-            bodyEl.innerHTML = "<p>Bu konu için henüz anlatım eklenmedi.</p>";
+            console.warn('Explanation not found for:', topicId);
+            titleEl.textContent = 'Hazırlanıyor...';
+            bodyEl.innerHTML = '<p>Bu konu için henüz anlatım eklenmedi.</p>';
         } else {
             const data = window.GRAMMAR_EXPLANATIONS[topicId];
             titleEl.textContent = data.title;
@@ -2433,8 +2332,8 @@ const app = {
         });
 
         // Show explanation
-        document.getElementById('grammar-feedback-text').textContent = "Cevap Gösterildi";
-        document.getElementById('grammar-feedback-text').style.color = "var(--text-secondary)";
+        document.getElementById('grammar-feedback-text').textContent = 'Cevap Gösterildi';
+        document.getElementById('grammar-feedback-text').style.color = 'var(--text-secondary)';
         document.getElementById('grammar-explanation').textContent = q.explanation;
 
         // Hide Pass, Show Next
@@ -2448,7 +2347,6 @@ const app = {
         const q = this.state.currentGrammarQuestion;
 
         // Update Score
-
 
         // Update Topic
         document.getElementById('grammar-topic').textContent = `${this.state.grammarLevel} - ${q.topic}`;
@@ -2479,7 +2377,7 @@ const app = {
     checkGrammarAnswer(selectedIndex, btnElement) {
         // Disable all options
         const btns = document.querySelectorAll('.grammar-option-btn');
-        btns.forEach(b => b.disabled = true);
+        btns.forEach((b) => (b.disabled = true));
 
         const q = this.state.currentGrammarQuestion;
         const isCorrect = selectedIndex === q.correct;
@@ -2498,8 +2396,8 @@ const app = {
         if (isCorrect) {
             this.playSound('correct');
             btnElement.classList.add('correct');
-            feedbackText.textContent = "DOĞRU! 🎉 (+1 Puan)";
-            feedbackText.style.color = "var(--neon-green)";
+            feedbackText.textContent = 'DOĞRU! 🎉 (+1 Puan)';
+            feedbackText.style.color = 'var(--neon-green)';
 
             // Points System: +1 for Grammar
             this.state.score += 1;
@@ -2519,7 +2417,6 @@ const app = {
             setTimeout(() => {
                 this.nextGrammarQuestion();
             }, 1500);
-
         } else {
             this.playSound('wrong');
 
@@ -2529,8 +2426,8 @@ const app = {
             // Highlight correct answer
             btns[q.correct].classList.add('correct'); // Show which was right
 
-            feedbackText.textContent = "YANLIŞ";
-            feedbackText.style.color = "#ef4444";
+            feedbackText.textContent = 'YANLIŞ';
+            feedbackText.style.color = '#ef4444';
 
             explanation.textContent = q.explanation;
 
@@ -2567,12 +2464,13 @@ const app = {
         container.innerHTML = '';
 
         if (!window.SCENARIO_DATA) {
-            container.innerHTML = '<p style="color:white; text-align:center; grid-column:1/-1;">Senaryolar yüklenemedi.</p>';
+            container.innerHTML =
+                '<p style="color:white; text-align:center; grid-column:1/-1;">Senaryolar yüklenemedi.</p>';
             return;
         }
 
         // --- SORT BY LEVEL (A1 -> C2) ---
-        const levelOrder = { 'A1': 1, 'A2': 2, 'B1': 3, 'B2': 4, 'C1': 5, 'C2': 6 };
+        const levelOrder = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 };
         const getLevelWeight = (lvl) => {
             if (!lvl) return 99;
             const primary = lvl.split('-')[0].trim().toUpperCase();
@@ -2583,7 +2481,7 @@ const app = {
             return getLevelWeight(a.level) - getLevelWeight(b.level);
         });
 
-        sortedScenarios.forEach(scenario => {
+        sortedScenarios.forEach((scenario) => {
             const card = document.createElement('div');
             card.className = 'book-card';
             card.style.background = scenario.bg
@@ -2606,7 +2504,7 @@ const app = {
 
     openScenario(id) {
         this.stopScenario();
-        const scenario = window.SCENARIO_DATA.find(s => s.id === id);
+        const scenario = window.SCENARIO_DATA.find((s) => s.id === id);
         if (!scenario) return;
 
         this.state.currentScenario = scenario;
@@ -2679,13 +2577,13 @@ const app = {
 
         // Reset all bubbles
         const allBubbles = document.querySelectorAll('.dialogue-bubble');
-        allBubbles.forEach(b => {
+        allBubbles.forEach((b) => {
             b.style.opacity = '0.4';
             b.style.transform = 'scale(0.98)';
             b.style.boxShadow = 'none';
-            b.style.border = b.className.includes('speaker-1') 
-                             ? '1px solid rgba(255,255,255,0.1)' 
-                             : '1px solid rgba(212, 175, 55, 0.3)';
+            b.style.border = b.className.includes('speaker-1')
+                ? '1px solid rgba(255,255,255,0.1)'
+                : '1px solid rgba(212, 175, 55, 0.3)';
         });
 
         // Highlight current bubble
@@ -2695,7 +2593,7 @@ const app = {
             currentBubble.style.transform = 'scale(1.02)';
             currentBubble.style.boxShadow = '0 10px 25px rgba(0,0,0,0.5)';
             currentBubble.style.border = '1px solid var(--accent-gold)';
-            
+
             // Center the bubble ensuring it doesn't stay hidden under controls
             currentBubble.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
@@ -2769,7 +2667,10 @@ const app = {
         if (!this.state.isScenarioPlaying) {
             this.state.isScenarioPlaying = true;
             document.getElementById('btn-scenario-play').textContent = '⏸';
-            if (this.state.currentScenario && this.state.currentDialogueIndex < this.state.currentScenario.content.length - 1) {
+            if (
+                this.state.currentScenario &&
+                this.state.currentDialogueIndex < this.state.currentScenario.content.length - 1
+            ) {
                 this.highlightCurrentScenarioStep(true);
             } else {
                 this.restartScenario();
@@ -2784,7 +2685,7 @@ const app = {
         this.state.currentDialogueIndex = 0;
         this.state.isScenarioPlaying = true;
         document.getElementById('btn-scenario-play').textContent = '⏸';
-        
+
         // Ensure UI is scrolled back smoothly
         document.getElementById('scenario-dialogue-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
         this.highlightCurrentScenarioStep(true);
@@ -2793,7 +2694,7 @@ const app = {
     toggleScenarioTranslation() {
         this.state.showScenarioTranslation = !this.state.showScenarioTranslation;
         const trTexts = document.querySelectorAll('.tr-text');
-        trTexts.forEach(el => {
+        trTexts.forEach((el) => {
             el.style.display = this.state.showScenarioTranslation ? 'block' : 'none';
         });
     },
@@ -2835,7 +2736,7 @@ const app = {
                 return;
             }
 
-            console.log("Lazy Loading Books...");
+            console.log('Lazy Loading Books...');
 
             // Core init file must load first
             const initScript = document.createElement('script');
@@ -2874,19 +2775,19 @@ const app = {
                     return;
                 }
 
-                scripts.forEach(src => {
+                scripts.forEach((src) => {
                     const s = document.createElement('script');
                     s.src = src;
                     s.onload = () => {
                         loaded++;
                         if (loaded === total) {
-                            console.log("All books loaded.");
+                            console.log('All books loaded.');
                             this.state.areBooksLoaded = true;
                             resolve();
                         }
                     };
                     s.onerror = () => {
-                        console.error("Failed to load book:", src);
+                        console.error('Failed to load book:', src);
                         loaded++; // continue anyway
                         if (loaded === total) {
                             this.state.areBooksLoaded = true;
@@ -2900,8 +2801,6 @@ const app = {
         });
     },
 
-
-
     renderLibrary() {
         const grid = document.getElementById('library-grid');
         grid.innerHTML = '';
@@ -2913,7 +2812,7 @@ const app = {
 
         const levels = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
-        levels.forEach(level => {
+        levels.forEach((level) => {
             const books = window.BOOK_DATA[level];
             if (books && Array.isArray(books) && books.length > 0) {
                 // Grouping Logic
@@ -2943,7 +2842,7 @@ const app = {
                 row.className = 'shelf-row';
 
                 // Render Groups
-                Object.keys(groups).forEach(baseTitle => {
+                Object.keys(groups).forEach((baseTitle) => {
                     const groupBooks = groups[baseTitle];
                     const isSeries = groupBooks.length > 1;
                     const representative = groupBooks[0]; // Use first book for cover/color
@@ -3012,7 +2911,7 @@ const app = {
 
         const grid = content.querySelector('.volume-grid');
 
-        books.forEach(book => {
+        books.forEach((book) => {
             const btn = document.createElement('button');
             btn.className = 'volume-btn';
             btn.style.borderColor = book.color || 'rgba(255,255,255,0.2)';
@@ -3045,7 +2944,7 @@ const app = {
         if (!originalPages || originalPages.length === 0) return [];
 
         let allLines = [];
-        originalPages.forEach(page => {
+        originalPages.forEach((page) => {
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = page;
             const children = Array.from(tempDiv.children);
@@ -3053,7 +2952,7 @@ const app = {
             if (children.length === 0 && page.trim()) {
                 allLines.push(`<p>${page.trim()}</p>`);
             } else {
-                children.forEach(child => {
+                children.forEach((child) => {
                     allLines.push(child.outerHTML);
                 });
             }
@@ -3065,7 +2964,6 @@ const app = {
         }
         return newPages;
     },
-
 
     openBook(level, index = 0) {
         const books = window.BOOK_DATA[level];
@@ -3225,9 +3123,9 @@ const app = {
         const rawText = contentArea.innerHTML.replace(/<[^>]*>/g, ' ');
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = rawText;
-        const cleanText = tempDiv.textContent || tempDiv.innerText || "";
+        const cleanText = tempDiv.textContent || tempDiv.innerText || '';
 
-        if (!cleanText || cleanText.trim() === "") return;
+        if (!cleanText || cleanText.trim() === '') return;
 
         this.state.isReadingBook = true;
 
@@ -3241,19 +3139,25 @@ const app = {
 
         // USE NEW PYTHON TTS MANAGER
         if (window.ttsManager) {
-            window.ttsManager.speak(cleanText, this.state.listening.voicePreference).then(() => {
-                if (this.state.isReadingBook) {
-                    setTimeout(() => {
-                        if (this.state.isReadingBook && this.state.currentBookPage < this.state.totalBookPages - 1) {
-                            this.nextBookPage(true);
-                        } else {
-                            this.stopBookReading();
-                        }
-                    }, 600);
-                }
-            }).catch(err => {
-                console.log("[Book] Reading interrupted or failed:", err.message);
-            });
+            window.ttsManager
+                .speak(cleanText, this.state.listening.voicePreference)
+                .then(() => {
+                    if (this.state.isReadingBook) {
+                        setTimeout(() => {
+                            if (
+                                this.state.isReadingBook &&
+                                this.state.currentBookPage < this.state.totalBookPages - 1
+                            ) {
+                                this.nextBookPage(true);
+                            } else {
+                                this.stopBookReading();
+                            }
+                        }, 600);
+                    }
+                })
+                .catch((err) => {
+                    console.log('[Book] Reading interrupted or failed:', err.message);
+                });
         }
     },
 
@@ -3311,16 +3215,7 @@ const app = {
     lookupWord(word) {
         if (!word || word.trim() === '') return;
 
-        const searchTerm = word.trim().toLowerCase();
-
-        // Find word in WORD_DATA (approx 30k words)
-        // Optimized: find first exact match or startsWith
-        let result = window.WORD_DATA.find(w => w.word.toLowerCase() === searchTerm);
-
-        if (!result) {
-            // Try startsWith if exact match fails
-            // result = window.WORD_DATA.find(w => w.word.toLowerCase().startsWith(searchTerm));
-        }
+        let result = VocabService.searchWord(word);
 
         const toast = document.getElementById('dict-toast');
         const wordEl = document.getElementById('dict-word');
@@ -3346,7 +3241,7 @@ const app = {
             }
         } else {
             wordEl.textContent = word;
-            meanEl.textContent = "Kelime bulunamadı.";
+            meanEl.textContent = 'Kelime bulunamadı.';
             levelEl.style.display = 'none';
 
             const starBtn = document.getElementById('dict-star-btn');
@@ -3395,9 +3290,7 @@ const app = {
 
         // Filter WORD_DATA for matches starting with query
         // Limit to 8 matches
-        const matches = window.WORD_DATA.filter(w =>
-            w.word.toLowerCase().startsWith(searchTerm)
-        ).slice(0, 8);
+        const matches = window.WORD_DATA.filter((w) => w.word.toLowerCase().startsWith(searchTerm)).slice(0, 8);
 
         if (matches.length === 0) {
             suggestionsBox.style.display = 'none';
@@ -3405,7 +3298,7 @@ const app = {
         }
 
         suggestionsBox.innerHTML = '';
-        matches.forEach(match => {
+        matches.forEach((match) => {
             const div = document.createElement('div');
             div.className = 'suggestion-item';
 
@@ -3473,7 +3366,8 @@ const app = {
         if (!modal) return;
 
         modal.classList.remove('hidden');
-        document.getElementById('auth-error-msg').textContent = '';
+        const errorMsg = document.getElementById('auth-error-msg');
+        if (errorMsg) errorMsg.textContent = '';
 
         const rememberedUsername = localStorage.getItem('remembered_username');
         const remView = document.getElementById('remembered-account-view');
@@ -3486,8 +3380,8 @@ const app = {
             document.getElementById('rem-login-password').value = '';
             document.getElementById('rem-login-password').focus();
 
-            document.getElementById('auth-title').textContent = "Tekrar Hoş Geldin!";
-            document.getElementById('auth-subtitle').textContent = "Kaldığın yerden devam etmek için şifreni gir.";
+            document.getElementById('auth-title').textContent = 'Tekrar Hoş Geldin!';
+            document.getElementById('auth-subtitle').textContent = 'Kaldığın yerden devam etmek için şifreni gir.';
         } else {
             remView.classList.add('hidden');
             stdView.classList.remove('hidden');
@@ -3508,15 +3402,17 @@ const app = {
         document.getElementById('tab-login').classList.toggle('active', tab === 'login');
         document.getElementById('tab-register').classList.toggle('active', tab === 'register');
 
-        document.getElementById('tab-login').style.borderBottom = tab === 'login' ? '2px solid var(--accent-gold)' : 'none';
-        document.getElementById('tab-register').style.borderBottom = tab === 'register' ? '2px solid var(--accent-gold)' : 'none';
+        document.getElementById('tab-login').style.borderBottom =
+            tab === 'login' ? '2px solid var(--accent-gold)' : 'none';
+        document.getElementById('tab-register').style.borderBottom =
+            tab === 'register' ? '2px solid var(--accent-gold)' : 'none';
 
         document.getElementById('form-login').classList.toggle('hidden', tab !== 'login');
         document.getElementById('form-register').classList.toggle('hidden', tab !== 'register');
 
-        document.getElementById('auth-title').textContent = tab === 'login' ? "Hesap Girişi" : "Yeni Hesap Oluştur";
-        document.getElementById('auth-subtitle').textContent = tab === 'login' ?
-            "Skorlarını kaydetmek için giriş yap." : "Hemen kayıt ol ve yarışmaya katıl!";
+        document.getElementById('auth-title').textContent = tab === 'login' ? 'Hesap Girişi' : 'Yeni Hesap Oluştur';
+        document.getElementById('auth-subtitle').textContent =
+            tab === 'login' ? 'Skorlarını kaydetmek için giriş yap.' : 'Hemen kayıt ol ve yarışmaya katıl!';
 
         document.getElementById('auth-error-msg').textContent = '';
     },
@@ -3534,19 +3430,19 @@ const app = {
         const errorEl = document.getElementById('auth-error-msg');
 
         if (!username || !password) {
-            errorEl.textContent = "Lütfen tüm alanları doldur.";
+            errorEl.textContent = 'Lütfen tüm alanları doldur.';
             return;
         }
 
-        const fakeEmail = username.toLowerCase().replace(/[^a-z0-9_]/g, '') + "@ihsansgate.local";
+        const fakeEmail = username.toLowerCase().replace(/[^a-z0-9_]/g, '') + '@ihsansgate.local';
 
         try {
-            await auth.signInWithEmailAndPassword(fakeEmail, password);
+            await AuthService.loginUser(username, password);
             localStorage.setItem('remembered_username', username); // Save for next time
             document.getElementById('view-login-modal').classList.add('hidden');
         } catch (error) {
-            console.error("Login Error:", error);
-            const msg = this.getAuthErrorMessage(error.code);
+            console.error('Login Error:', error);
+            const msg = AuthService.getAuthErrorMessage(error.code);
             errorEl.textContent = msg;
         }
     },
@@ -3557,49 +3453,24 @@ const app = {
         const errorEl = document.getElementById('auth-error-msg');
 
         if (!username || !password) {
-            errorEl.textContent = "Lütfen tüm alanları doldur.";
+            errorEl.textContent = 'Lütfen tüm alanları doldur.';
             return;
         }
         if (password.length < 6) {
-            errorEl.textContent = "Şifre en az 6 karakter olmalı.";
+            errorEl.textContent = 'Şifre en az 6 karakter olmalı.';
             return;
         }
 
-        const fakeEmail = username.toLowerCase().replace(/[^a-z0-9_]/g, '') + "@ihsansgate.local";
+        const fakeEmail = username.toLowerCase().replace(/[^a-z0-9_]/g, '') + '@ihsansgate.local';
 
         try {
-            const userCredential = await auth.createUserWithEmailAndPassword(fakeEmail, password);
-            const user = userCredential.user;
-
-            await db.collection('users').doc(user.uid).set({
-                username: username,
-                email: fakeEmail,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                score: 0
-            });
-
-            await user.updateProfile({ displayName: username });
-
+            await AuthService.registerUser(username, password);
             localStorage.setItem('remembered_username', username); // Save for next time
             document.getElementById('view-login-modal').classList.add('hidden');
         } catch (error) {
-            console.error("Register Error:", error);
-            const msg = this.getAuthErrorMessage(error.code);
+            console.error('Register Error:', error);
+            const msg = AuthService.getAuthErrorMessage(error.code);
             errorEl.textContent = msg;
-        }
-    },
-
-    getAuthErrorMessage(code) {
-        switch (code) {
-            case 'auth/email-already-in-use': return "Bu kullanıcı adı zaten kullanılıyor.";
-            case 'auth/invalid-email': return "Geçersiz kullanıcı adı formatı.";
-            case 'auth/wrong-password': return "Bir hata oluştu: Kullanıcı adı veya şifre hatalı.";
-            case 'auth/user-not-found': return "Bir hata oluştu: Kullanıcı adı veya şifre hatalı.";
-            case 'auth/weak-password': return "Şifre çok zayıf.";
-            case 'auth/operation-not-allowed': return "Giriş yöntemi kapalı.";
-            case 'auth/network-request-failed': return "Bağlantı hatası.";
-            case 'auth/too-many-requests': return "Çok fazla deneme! Biraz bekleyin.";
-            default: return "Bir hata oluştu.";
         }
     },
 
@@ -3629,7 +3500,7 @@ const app = {
                 this.renderListeningLevel();
             }, 100);
         } else {
-            alert("Cümle verisi yüklenemedi!");
+            alert('Cümle verisi yüklenemedi!');
             this.openModeSelection();
         }
     },
@@ -3657,7 +3528,7 @@ const app = {
 
     setVoicePreference(pref) {
         this.state.listening.voicePreference = pref;
-        console.log("Voice Preference Set:", pref);
+        console.log('Voice Preference Set:', pref);
 
         // Play sample
         this.playSentence(1);
@@ -3757,11 +3628,14 @@ const app = {
         if (wave) wave.classList.add('playing');
 
         if (window.ttsManager) {
-            window.ttsManager.speak(text, voice).then(() => {
-                if (wave) wave.classList.remove('playing');
-            }).catch(() => {
-                if (wave) wave.classList.remove('playing');
-            });
+            window.ttsManager
+                .speak(text, voice)
+                .then(() => {
+                    if (wave) wave.classList.remove('playing');
+                })
+                .catch(() => {
+                    if (wave) wave.classList.remove('playing');
+                });
         }
     },
 
@@ -3827,7 +3701,6 @@ const app = {
 
         const nextBtn = document.getElementById('btn-listening-next');
         if (nextBtn) nextBtn.classList.remove('hidden');
-
     },
 
     nextListeningLevel() {
@@ -3852,7 +3725,7 @@ const app = {
         modal.style.display = 'none';
 
         if (window.ttsManager) {
-            // window.ttsManager.stop(); 
+            // window.ttsManager.stop();
         }
     },
 
@@ -3877,7 +3750,7 @@ const app = {
         }
         const currentId = this.state.listening.voicePreference;
 
-        voices.forEach(voice => {
+        voices.forEach((voice) => {
             const isSelected = currentId === voice.id;
             const card = document.createElement('div');
             card.className = `voice-option-card ${isSelected ? 'selected' : ''}`;
@@ -3922,23 +3795,11 @@ const app = {
         // Play Sample
         if (window.ttsManager) {
             window.ttsManager.stop();
-            const phrase = "Hello! This is my voice.";
+            const phrase = 'Hello! This is my voice.';
             window.ttsManager.speak(phrase, voiceId);
         }
-    },
-
-};
-
-window.onload = () => {
-    try {
-        if (typeof firebase === 'undefined') {
-            alert("Firebase yüklenemedi! İnternet bağlantınızı kontrol edin.");
-            return;
-        }
-        app.init();
-    } catch (e) {
-        alert("Başlatma Hatası: " + e.message + "\n" + e.stack);
-        console.error(e);
     }
 };
+
+// Entry point handled by main.js
 window.app = app; // Expose to window for HTML onclick handlers

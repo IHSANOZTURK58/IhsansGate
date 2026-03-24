@@ -1,4 +1,3 @@
-
 const fs = require('fs');
 const path = require('path');
 
@@ -9,7 +8,7 @@ try {
     const start = content.indexOf('[');
     const end = content.lastIndexOf(']');
 
-    if (start === -1) throw new Error("Format error");
+    if (start === -1) throw new Error('Format error');
 
     let arrayContent = content.substring(start, end + 1);
     const window = {};
@@ -38,30 +37,29 @@ try {
 
     // Move 300 A2 -> A1
     const toA1 = a2Indices.slice(0, 300);
-    toA1.forEach(idx => data[idx].level = 'A1');
+    toA1.forEach((idx) => (data[idx].level = 'A1'));
 
     // Move 50 B2 -> C1 (Total C1 was 9, now 59)
     const toC1 = b2Indices.slice(0, 50);
-    toC1.forEach(idx => data[idx].level = 'C1');
+    toC1.forEach((idx) => (data[idx].level = 'C1'));
 
     // Move 30 B2 -> C2
     const toC2 = b2Indices.slice(50, 80);
-    toC2.forEach(idx => data[idx].level = 'C2');
+    toC2.forEach((idx) => (data[idx].level = 'C2'));
 
     // Format output
     // Clean JSON format but keeping the variable assignment
     const newContent = 'window.WORD_DATA = ' + JSON.stringify(data, null, 4) + ';';
 
     fs.writeFileSync(wordsFile, newContent, 'utf8');
-    console.log("Rebalanced levels successfully.");
+    console.log('Rebalanced levels successfully.');
 
     // Verify
     const counts = {};
-    data.forEach(w => {
+    data.forEach((w) => {
         counts[w.level] = (counts[w.level] || 0) + 1;
     });
-    console.log("New Counts:", counts);
-
+    console.log('New Counts:', counts);
 } catch (e) {
-    console.error("Error:", e);
+    console.error('Error:', e);
 }
