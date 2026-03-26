@@ -2201,7 +2201,55 @@ export const app = {
         this.state.previousView = this.state.currentView;
         this.state.currentView = 'grammar-intro';
         this.render();
-        this.updateGrammarCounts();
+        // Skip updateGrammarCounts here as the level cards don't have topic counts yet
+    },
+
+    openGrammarTopics(level) {
+        this.state.grammarLevel = level;
+        this.state.previousView = this.state.currentView;
+        this.state.currentView = 'grammar-topics';
+        this.render();
+        this.renderGrammarTopics(level);
+    },
+
+    renderGrammarTopics(level) {
+        const container = document.getElementById('grammar-topics-container');
+        const titleEl = document.getElementById('grammar-topics-title');
+        if (!container || !window.GRAMMAR_DATA) return;
+
+        if (titleEl) titleEl.textContent = `${level} Seviyesi Konuları`;
+        container.innerHTML = '';
+
+        // Get unique topics for this level
+        const topics = [...new Set(window.GRAMMAR_DATA
+            .filter(q => q.level === level)
+            .map(q => q.topic_id))];
+
+        if (topics.length === 0) {
+            container.innerHTML = '<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--text-secondary);">Bu seviye için henüz konu eklenmedi.</p>';
+            return;
+        }
+
+        topics.forEach(topicId => {
+            const firstQ = window.GRAMMAR_DATA.find(q => q.topic_id === topicId && q.level === level);
+            const topicName = firstQ ? firstQ.topic : topicId;
+            const count = window.GRAMMAR_DATA.filter(q => q.topic_id === topicId && q.level === level).length;
+
+            const card = document.createElement('div');
+            card.className = 'grammar-topic-card';
+            card.onclick = () => this.startGrammarMode(topicId);
+            card.innerHTML = `
+                <div class="topic-icon">📝</div>
+                <div class="topic-info">
+                    <h3 style="margin:0; font-size:1.1rem;">${topicName}</h3>
+                    <span class="topic-count">${count} Soru</span>
+                </div>
+                <div class="topic-actions">
+                    <button class="btn-info" onclick="app.showGrammarExplanation('${topicId}'); event.stopPropagation();" title="Konu Anlatımı">ℹ️</button>
+                </div>
+            `;
+            container.appendChild(card);
+        });
     },
 
     updateGrammarCounts() {
@@ -2239,14 +2287,14 @@ export const app = {
     },
 
     startGrammarMode(topic) {
-        this.state.grammarTopic = topic; // Keep track of the current topic
-        this.state.grammarScore = 0;
+        this.state.grammarTopic = topic;
         this.state.grammarScore = 0;
 
         // Find topic title for display
-        const topicCard = document.querySelector(`.grammar-topic-card[onclick="app.startGrammarMode('${topic}')"]`);
+        const topicCard = document.querySelector(`.grammar-topic-card[onclick*="startGrammarMode('${topic}')"]`);
         const title = topicCard ? topicCard.querySelector('h3').textContent : topic;
-        document.getElementById('grammar-topic').textContent = title;
+        const topicTitleEl = document.getElementById('grammar-topic');
+        if (topicTitleEl) topicTitleEl.textContent = title;
 
         // Filter questions
         if (!window.GRAMMAR_DATA) {
@@ -2803,6 +2851,10 @@ export const app = {
 
     renderLibrary() {
         const grid = document.getElementById('library-grid');
+        if (!grid) {
+            console.error('[renderLibrary] library-grid elementi bulunamadı!');
+            return;
+        }
         grid.innerHTML = '';
 
         if (!window.BOOK_DATA) {
@@ -2987,11 +3039,19 @@ export const app = {
         this.state.paginatedPages = paginatedPages;
         this.state.totalBookPages = paginatedPages.length;
 
-        document.getElementById('reading-library').classList.add('hidden');
-        document.getElementById('reading-reader').classList.remove('hidden');
+        const libEl = document.getElementById('view-reading');
+        const readerEl = document.getElementById('view-reader');
+        if (!libEl || !readerEl) {
+            console.error('[openBook] view-reading veya view-reader elementi bulunamadı!');
+            return;
+        }
+        libEl.classList.add('hidden');
+        readerEl.classList.remove('hidden');
 
-        document.getElementById('reader-book-title').textContent = book.title;
-        document.getElementById('reader-book-level').textContent = `Seviye ${book.level}`;
+        const titleEl = document.getElementById('reader-book-title');
+        const levelEl = document.getElementById('reader-book-level');
+        if (titleEl) titleEl.textContent = book.title;
+        if (levelEl) levelEl.textContent = `Seviye ${book.level}`;
 
         // Render page
         this.renderBookPage();
@@ -3004,7 +3064,7 @@ export const app = {
     },
 
     setupReaderGestures() {
-        const reader = document.getElementById('reading-reader');
+        const reader = document.getElementById('view-reader');
         if (!reader) return;
 
         let touchStartX = 0;
@@ -3042,8 +3102,10 @@ export const app = {
 
         this.stopBookReading(); // Stop Audio
 
-        document.getElementById('reading-reader').classList.add('hidden');
-        document.getElementById('reading-library').classList.remove('hidden');
+        const readerEl = document.getElementById('view-reader');
+        const libEl = document.getElementById('view-reading');
+        if (readerEl) readerEl.classList.add('hidden');
+        if (libEl) libEl.classList.remove('hidden');
     },
 
     renderBookPage() {
@@ -3054,7 +3116,10 @@ export const app = {
         if (!pages || pages.length === 0) return;
 
         const content = pages[this.state.currentBookPage];
-        document.getElementById('reader-content').innerHTML = content;
+        const readerContentEl = document.getElementById('reader-content');
+        if (readerContentEl) {
+            readerContentEl.innerHTML = content;
+        }
 
         // Update page indicator
         const indicator = document.getElementById('page-indicator');
@@ -3081,8 +3146,7 @@ export const app = {
         }
 
         // Scroll to top
-        const readerContent = document.getElementById('reader-content');
-        if (readerContent) readerContent.scrollTop = 0;
+        if (readerContentEl) readerContentEl.scrollTop = 0;
     },
 
     toggleBookmark() {

@@ -3,7 +3,7 @@ import { Component } from '../Component.js';
 export class ReaderView extends Component {
     render() {
         return `
-            <div id="reading-reader" class="hidden">
+            <div id="view-reader" class="view hidden">
                 <div class="reader-header">
                     <button class="reader-back-btn" onclick="app.closeBook()" title="Kütüphaneye Dön">&larr;</button>
                     <div class="reader-search-box">

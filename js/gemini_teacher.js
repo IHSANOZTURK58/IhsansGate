@@ -409,7 +409,7 @@ export const GeminiTeacher = {
                         return this.fetchQuestionAPI(isSilent);
                     }
                 }
-                const errData = await response.json().catch(() => ({}));
+                await response.json().catch(() => ({}));
                 throw new Error('Quota or Server Error');
             }
 

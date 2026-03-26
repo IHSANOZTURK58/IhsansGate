@@ -200,7 +200,7 @@ export class TTSManager {
                 resolve();
             };
 
-            audio.onerror = (e) => {
+            audio.onerror = () => {
                 this.isPlaying = false;
                 this.currentAudio = null;
                 reject(new Error('Ses çalınamadı'));
