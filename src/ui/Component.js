@@ -28,7 +28,7 @@ export class Component {
         children.forEach(child => parent.appendChild(child));
         
         // For convenience, set this.element to the first element child if it exists
-        this.element = children.find(node => node.nodeType === 1 /* ELEMENT_NODE */) || children[0];
+        this.element = children.find(node => node.nodeType === Node.ELEMENT_NODE) || children[0];
         
         this.afterMount();
     }
