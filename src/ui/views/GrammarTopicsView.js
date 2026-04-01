@@ -5,7 +5,7 @@ export class GrammarTopicsView extends Component {
         return `
             <div id="view-grammar-topics" class="view hidden">
                 <div class="modes-header-group" style="padding:1.5rem;">
-                    <button class="btn-icon back-btn-top" onclick="app.openGrammarLevelSelection()" title="Geri">
+                    <button class="btn-icon back-btn-top" onclick="app.showDashboard()" title="Geri">
                         &larr;
                     </button>
                     <h2 id="grammar-topics-title">Topics</h2>

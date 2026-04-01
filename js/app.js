@@ -2205,6 +2205,7 @@ export const app = {
     },
 
     openGrammarTopics(level) {
+        // Map 'Mixed' to 'Karışık' for Turkish UI if needed, or just use as is
         this.state.grammarLevel = level;
         this.state.previousView = this.state.currentView;
         this.state.currentView = 'grammar-topics';
@@ -2217,13 +2218,17 @@ export const app = {
         const titleEl = document.getElementById('grammar-topics-title');
         if (!container || !window.GRAMMAR_DATA) return;
 
-        if (titleEl) titleEl.textContent = `${level} Seviyesi Konuları`;
+        if (titleEl) {
+            titleEl.textContent = level === 'Mixed' ? 'Tüm Dil Bilgisi Konuları' : `${level} Seviyesi Konuları`;
+        }
         container.innerHTML = '';
 
-        // Get unique topics for this level
-        const topics = [...new Set(window.GRAMMAR_DATA
-            .filter(q => q.level === level)
-            .map(q => q.topic_id))];
+        // Get unique topics: filter by level IF not Mixed
+        const filteredData = level === 'Mixed' 
+            ? window.GRAMMAR_DATA 
+            : window.GRAMMAR_DATA.filter(q => q.level === level);
+
+        const topics = [...new Set(filteredData.map(q => q.topic_id))];
 
         if (topics.length === 0) {
             container.innerHTML = '<p style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--text-secondary);">Bu seviye için henüz konu eklenmedi.</p>';
@@ -2231,9 +2236,10 @@ export const app = {
         }
 
         topics.forEach(topicId => {
-            const firstQ = window.GRAMMAR_DATA.find(q => q.topic_id === topicId && q.level === level);
+            // Find first question for this topic regardless of level if Mixed
+            const firstQ = filteredData.find(q => q.topic_id === topicId);
             const topicName = firstQ ? firstQ.topic : topicId;
-            const count = window.GRAMMAR_DATA.filter(q => q.topic_id === topicId && q.level === level).length;
+            const count = filteredData.filter(q => q.topic_id === topicId).length;
 
             const card = document.createElement('div');
             card.className = 'grammar-topic-card';
@@ -2322,7 +2328,7 @@ export const app = {
     showGrammarExplanation(topicId) {
         const modal = document.getElementById('grammar-explanation-modal');
         const titleEl = document.getElementById('explanation-title');
-        const bodyEl = document.getElementById('explanation-body');
+        const bodyEl = document.getElementById('explanation-content');
 
         if (!window.GRAMMAR_EXPLANATIONS || !window.GRAMMAR_EXPLANATIONS[topicId]) {
             console.warn('Explanation not found for:', topicId);
@@ -2397,7 +2403,8 @@ export const app = {
         // Update Score
 
         // Update Topic
-        document.getElementById('grammar-topic').textContent = `${this.state.grammarLevel} - ${q.topic}`;
+        const levelDisplay = this.state.grammarLevel === 'Mixed' ? 'Karışık' : this.state.grammarLevel;
+        document.getElementById('grammar-topic').textContent = `${levelDisplay} - ${q.topic}`;
 
         // Render Question with Gap
         const questionEl = document.getElementById('grammar-question');
@@ -2444,8 +2451,11 @@ export const app = {
         if (isCorrect) {
             this.playSound('correct');
             btnElement.classList.add('correct');
-            feedbackText.textContent = 'DOĞRU! 🎉 (+1 Puan)';
+            feedbackText.textContent = 'HARİKA! 🎉 (+1 Puan)';
             feedbackText.style.color = 'var(--neon-green)';
+            
+            // Hide explanation if it was visible from previous question
+            if (explanation) explanation.classList.add('hidden');
 
             // Points System: +1 for Grammar
             this.state.score += 1;
@@ -2474,10 +2484,13 @@ export const app = {
             // Highlight correct answer
             btns[q.correct].classList.add('correct'); // Show which was right
 
-            feedbackText.textContent = 'YANLIŞ';
-            feedbackText.style.color = '#ef4444';
+            feedbackText.textContent = 'DİKKAT! ⚠';
+            feedbackText.style.color = '#ff4b2b';
 
-            explanation.textContent = q.explanation;
+            if (explanation) {
+                explanation.innerHTML = `<div style="font-weight:700; color:var(--accent-gold); margin-bottom:0.5rem;">📌 ÖĞRETMEN NOTU:</div>${q.explanation}`;
+                explanation.classList.remove('hidden');
+            }
 
             // Hide Pass button, Show Next
             if (passBtn) passBtn.style.display = 'none';

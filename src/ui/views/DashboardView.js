@@ -5,7 +5,7 @@ export class DashboardView extends Component {
     render() {
         const cards = [
             { icon: '📚', title: 'Kelime Çalışması', description: 'Yeni kelimeler öğren ve pratik yap.', onClick: 'app.openModeSelection()', isHero: true },
-            { icon: '🧠', title: 'Dil Bilgisi', description: 'Dil bilgisi kurallarını test et.', onClick: 'app.openGrammarLevelSelection()', isHero: false },
+            { icon: '🧠', title: 'Dil Bilgisi', description: 'Dil bilgisi kurallarını test et.', onClick: "app.openGrammarTopics('Mixed')", isHero: false },
             { icon: '📖🎧', title: 'Okuma & Dinleme', description: 'Hikayeler oku ve dinleme egzersizleri yap.', onClick: 'app.openReadingListeningModes()', isHero: true },
             { icon: '✍️', title: 'Yazma', description: 'Kelime ve cümle yazma becerilerini geliştir.', onClick: 'app.openWritingModes()', isHero: false }
         ];

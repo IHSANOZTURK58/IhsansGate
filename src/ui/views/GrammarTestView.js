@@ -15,8 +15,8 @@ export class GrammarTestView extends Component {
                     <div id="grammar-options" class="options-grid">
                         <!-- Options injected via JS -->
                     </div>
-                    <div id="grammar-feedback-text" style="margin-top:1.5rem; text-align:center; min-height:1.5rem; font-weight:bold;"></div>
-                    <div id="grammar-explanation" style="margin-top:1rem; padding:1rem; border-radius:8px; background:rgba(255,255,255,0.05); font-size:0.9rem; color:var(--text-secondary); text-align:center;"></div>
+                    <div id="grammar-feedback-text" style="margin-top:1.5rem; text-align:center; min-height:1.5rem; font-weight:bold; font-size:1.2rem;"></div>
+                    <div id="grammar-explanation" class="hidden" style="margin-top:1rem; padding:1.2rem; border-radius:12px; background:rgba(255,255,255,0.08); border-left:4px solid var(--neon-gold); font-size:0.95rem; color:var(--text-secondary); text-align:left; line-height:1.5;"></div>
                 </div>
 
                 <div style="margin-top:2rem; text-align:center;">

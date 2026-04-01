@@ -24,7 +24,6 @@ import { AITeacherView } from './ui/views/AITeacherView.js';
 import { ListeningGameView } from './ui/views/ListeningGameView.js';
 import { WordListView } from './ui/views/WordListView.js';
 import { GlobalLeaderboardView } from './ui/views/GlobalLeaderboardView.js';
-import { GrammarLevelSelectionView } from './ui/views/GrammarLevelSelectionView.js';
 import { GrammarTopicsView } from './ui/views/GrammarTopicsView.js';
 import { GrammarTestView } from './ui/views/GrammarTestView.js';
 import { LibraryListView } from './ui/views/LibraryListView.js';
@@ -73,7 +72,6 @@ if (appUI) {
         new ListeningGameView(),
         new WordListView(),
         new GlobalLeaderboardView(),
-        new GrammarLevelSelectionView(),
         new GrammarTopicsView(),
         new GrammarTestView(),
         new LibraryListView(),
