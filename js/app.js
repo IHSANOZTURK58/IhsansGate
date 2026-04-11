@@ -2046,6 +2046,17 @@ export const app = {
             btn.onclick = () => this.handleLetterClick(item);
             poolContainer.appendChild(btn);
         });
+
+        // Reset buttons if they were hidden by Give Up
+        const nextBtn = document.getElementById('btn-scramble-next');
+        const checkBtn = document.getElementById('btn-scramble-check');
+        const clearBtn = document.getElementById('btn-scramble-clear');
+        const giveUpBtn = document.getElementById('btn-scramble-giveup');
+        
+        if (nextBtn) nextBtn.classList.add('hidden');
+        if (checkBtn) checkBtn.classList.remove('hidden');
+        if (clearBtn) clearBtn.classList.remove('hidden');
+        if (giveUpBtn) giveUpBtn.classList.remove('hidden');
     },
 
     handleLetterClick(item) {
@@ -2130,6 +2141,30 @@ export const app = {
         this.state.writingInput.fill(null);
         this.state.writingPool.forEach((i) => (i.used = false));
         this.renderWritingBoard();
+    },
+
+    giveUpWritingScramble() {
+        this.playSound('wrong');
+        
+        // Find correct spelling
+        const wordData = this.state.currentWritingWord;
+        const targetWord = wordData.word.toUpperCase();
+        
+        const fb = document.getElementById('writing-feedback');
+        if (fb) {
+            fb.innerHTML = `<span style="background: rgba(239, 68, 68, 0.2); padding: 0.5rem 1.5rem; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.5); color: #fecaca; font-family: monospace; font-size: 1.5rem; letter-spacing: 3px; display: inline-block; box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3); margin-top: 1rem;">Doğrusu: <strong style="color:white">${targetWord}</strong></span>`;
+        }
+        
+        // Hide control buttons, show next button
+        const nextBtn = document.getElementById('btn-scramble-next');
+        const checkBtn = document.getElementById('btn-scramble-check');
+        const clearBtn = document.getElementById('btn-scramble-clear');
+        const giveUpBtn = document.getElementById('btn-scramble-giveup');
+        
+        if (checkBtn) checkBtn.classList.add('hidden');
+        if (clearBtn) clearBtn.classList.add('hidden');
+        if (giveUpBtn) giveUpBtn.classList.add('hidden');
+        if (nextBtn) nextBtn.classList.remove('hidden');
     },
 
     checkWritingAnswer() {
@@ -2318,6 +2353,10 @@ export const app = {
 
         this.state.grammarQuestions = this.shuffleArray(questions); // Store shuffled questions
         this.state.grammarQuestionIndex = 0; // Start from the first question
+        
+        if (this.state.grammarQuestions.length > 10) {
+            this.state.grammarQuestions = this.state.grammarQuestions.slice(0, 10);
+        }
 
         this.state.previousView = this.state.currentView;
         this.state.currentView = 'grammar';
@@ -2354,17 +2393,36 @@ export const app = {
         // Reset UI
         document.getElementById('grammar-feedback-text').textContent = '';
         document.getElementById('grammar-explanation').textContent = '';
-        document.getElementById('btn-grammar-next').style.display = 'none';
+        document.getElementById('btn-grammar-next').classList.add('hidden');
 
         const passBtn = document.getElementById('btn-grammar-pass');
-        if (passBtn) passBtn.style.display = 'inline-block';
+        if (passBtn) passBtn.classList.remove('hidden');
 
-        // Pick Random
         const questions = this.state.grammarQuestions;
-        const q = questions[Math.floor(Math.random() * questions.length)];
+
+        if (this.state.grammarQuestionIndex >= questions.length) {
+            this.finishGrammarTest();
+            return;
+        }
+
+        const q = questions[this.state.grammarQuestionIndex];
         this.state.currentGrammarQuestion = q;
 
         this.renderGrammarQuestion();
+
+        this.state.grammarQuestionIndex++;
+    },
+
+    finishGrammarTest() {
+        this.playSound('correct');
+        const scorePopup = document.getElementById('grammar-feedback-text');
+        if(scorePopup) {
+            scorePopup.textContent = "TEST BİTTİ! Menüye Dönülüyor...";
+            scorePopup.style.color = "var(--neon-gold)";
+        }
+        setTimeout(() => {
+            this.openGrammarTopics(this.state.grammarLevel);
+        }, 1500);
     },
 
     passGrammarQuestion() {
@@ -2392,13 +2450,18 @@ export const app = {
 
         // Hide Pass, Show Next
         const passBtn = document.getElementById('btn-grammar-pass');
-        if (passBtn) passBtn.style.display = 'none';
+        if (passBtn) passBtn.classList.add('hidden');
 
-        document.getElementById('btn-grammar-next').style.display = 'inline-block';
+        document.getElementById('btn-grammar-next').classList.remove('hidden');
     },
 
     renderGrammarQuestion() {
         const q = this.state.currentGrammarQuestion;
+
+        const currentIndexEl = document.getElementById('grammar-current-index');
+        const totalCountEl = document.getElementById('grammar-total-count');
+        if (currentIndexEl) currentIndexEl.textContent = this.state.grammarQuestionIndex + 1;
+        if (totalCountEl) totalCountEl.textContent = this.state.grammarQuestions.length;
 
         // Update Score
 
@@ -2493,8 +2556,8 @@ export const app = {
             }
 
             // Hide Pass button, Show Next
-            if (passBtn) passBtn.style.display = 'none';
-            nextBtn.style.display = 'inline-block';
+            if (passBtn) passBtn.classList.add('hidden');
+            nextBtn.classList.remove('hidden');
         }
     },
 

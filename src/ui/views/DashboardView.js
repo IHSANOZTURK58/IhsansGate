@@ -30,7 +30,7 @@ export class DashboardView extends Component {
                             <div class="logo">
                                 <div class="logo-row">
                                     <span class="logo-icon">🔥</span>
-                                    <h1>İhsans<span class="highlight">Gate</span></h1>
+                                    <h1>English<span class="highlight">Gate</span></h1>
                                 </div>
                             </div>
                             <button class="btn-icon trophy-btn" onclick="app.openGlobalLeaderboard()"

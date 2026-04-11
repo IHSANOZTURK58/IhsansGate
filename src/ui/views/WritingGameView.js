@@ -31,7 +31,7 @@ export class WritingGameView extends Component {
                         <!-- Generated via JS -->
                     </div>
 
-                    <div id="writing-feedback" style="height:2rem; font-weight:bold; color:var(--text-primary);"></div>
+                    <div id="writing-feedback" style="min-height:4rem; margin-top: 1.5rem; font-weight:bold; color:var(--text-primary);"></div>
                 </div>
 
                 <div style="margin-top:2rem; display:flex; justify-content:center; gap:1rem; flex-wrap:wrap;">

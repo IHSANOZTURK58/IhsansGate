@@ -1,12 +1,12 @@
 import { auth, db } from './firebase.js';
 
 export async function loginUser(username, password) {
-    const fakeEmail = username.toLowerCase().replace(/[^a-z0-9_]/g, '') + '@ihsansgate.local';
+    const fakeEmail = username.toLowerCase().replace(/[^a-z0-9_]/g, '') + '@englishgate.local';
     return auth.signInWithEmailAndPassword(fakeEmail, password);
 }
 
 export async function registerUser(username, password) {
-    const fakeEmail = username.toLowerCase().replace(/[^a-z0-9_]/g, '') + '@ihsansgate.local';
+    const fakeEmail = username.toLowerCase().replace(/[^a-z0-9_]/g, '') + '@englishgate.local';
     const userCredential = await auth.createUserWithEmailAndPassword(fakeEmail, password);
     const user = userCredential.user;
 

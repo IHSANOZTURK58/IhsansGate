@@ -780,6 +780,12 @@ body {
         0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
+#btn-grammar-next, #btn-grammar-pass, #btn-grammar-finish,
+#btn-scramble-clear, #btn-scramble-giveup, #btn-scramble-check, #btn-scramble-next {
+    position: relative;
+    z-index: 10;
+}
+
 .card-header {
     display: flex;
     justify-content: space-between;
@@ -1260,7 +1266,7 @@ input:focus {
 
 #view-level-map {
     /* Base for the view */
-    background: url('../assets/sky-bg.png') no-repeat center center;
+    background: url('../assets/sky-bg.png') no-repeat center center fixed;
     background-color: #1e1b4b;
     /* Dark indigo fallback */
     background-size: cover;
