@@ -386,19 +386,34 @@ export const GeminiTeacher = {
           ... up to 5 items
         ]
         `;
-
         try {
-            const baseUrl = window.ttsManager ? window.ttsManager.proxyUrl : 'http://localhost:3000';
-            const apiUrl = `${baseUrl}/api/ai/generate`;
+            let activeApiKey = this.apiKey;
+            try {
+                if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) {
+                    activeApiKey = import.meta.env.VITE_GEMINI_API_KEY;
+                }
+            } catch (e) {
+                // Ignore Vite env errors
+            }
 
-            console.log(`[AI Teacher] Fetching LinguaSensei from: ${apiUrl}`);
+            if (!activeApiKey || activeApiKey === 'YOUR_KEY_HERE') {
+                console.warn("[AI Teacher] API Key is missing. Please set VITE_GEMINI_API_KEY in .env");
+                throw new Error("API Anahtarı bulunamadı! Lütfen ayarlardan Gemini API anahtarınızı ekleyin.");
+            }
+
+            // Fallback since gemma-3-27b-it doesn't exist on standard Google Gemini endpoint
+            const activeModel = (this.model === 'gemma-3-27b-it') ? 'gemini-1.5-flash' : this.model;
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${activeModel}:generateContent?key=${activeApiKey}`;
+
+            console.log(`[AI Teacher] Fetching from Gemini API directly...`);
 
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    prompt: prompt,
-                    model: this.model
+                    contents: [{
+                        parts: [{ text: prompt }]
+                    }]
                 })
             });
 
@@ -410,7 +425,7 @@ export const GeminiTeacher = {
                     }
                 }
                 await response.json().catch(() => ({}));
-                throw new Error('Quota or Server Error');
+                throw new Error('API Hatası veya Kota Dolu');
             }
 
             const data = await response.json();
