@@ -780,8 +780,13 @@ body {
         0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
-#btn-grammar-next, #btn-grammar-pass, #btn-grammar-finish,
-#btn-scramble-clear, #btn-scramble-giveup, #btn-scramble-check, #btn-scramble-next {
+#btn-grammar-next,
+#btn-grammar-pass,
+#btn-grammar-finish,
+#btn-scramble-clear,
+#btn-scramble-giveup,
+#btn-scramble-check,
+#btn-scramble-next {
     position: relative;
     z-index: 10;
 }
@@ -1746,6 +1751,7 @@ input:focus {
 
 /* Floating Animation */
 @keyframes floatY {
+
     0%,
     100% {
         transform: translateY(0);
@@ -2128,6 +2134,7 @@ input:focus {
 
 /* Desktop Override */
 @media (min-width: 1024px) {
+
     /* Apply desktop grid logic nicely */
     #view-modes .modes-split-layout {
         grid-template-columns: 2fr 1fr;
@@ -3335,6 +3342,7 @@ input:focus {
    ======================================== */
 
 @media (max-width: 480px) {
+
     /* Language Toggle Button - Make it smaller/Compact for Header */
     #btn-lang-toggle {
         font-size: 0.75rem !important;
@@ -3504,6 +3512,7 @@ input:focus {
 /* iOS Safe Area (notch devices) */
 @supports (padding: env(safe-area-inset-bottom)) {
     @media (max-width: 480px) {
+
         /* NUCLEAR FIX: Force Writing Mode Layout */
         #view-writing-modes .writing-modes-grid {
             display: flex !important;
@@ -3557,6 +3566,7 @@ input:focus {
    ======================================== */
 
         @media (max-width: 480px) {
+
             /* Language Toggle Button - Make it smaller */
             #btn-lang-toggle {
                 font-size: 0.85rem !important;
@@ -3625,6 +3635,7 @@ input:focus {
 
         /* Mobile Keyboard Optimization */
         @media (max-width: 480px) {
+
             /* Task Header - Move to top, compact */
             .task-header {
                 padding: 0.5rem 0.75rem !important;
@@ -3980,7 +3991,7 @@ input:focus {
         z-index: 0;
     }
 
-    #view-writing-modes > * {
+    #view-writing-modes>* {
         position: relative;
         z-index: 1;
     }
@@ -4441,7 +4452,7 @@ input:focus {
     z-index: 20;
 }
 
-.listening-header > * {
+.listening-header>* {
     pointer-events: auto;
 }
 
@@ -4626,6 +4637,7 @@ input:focus {
 }
 
 @keyframes shake {
+
     10%,
     90% {
         transform: translate3d(-1px, 0, 0);

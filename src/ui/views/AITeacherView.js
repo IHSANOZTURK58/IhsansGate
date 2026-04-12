@@ -7,6 +7,11 @@ export class AITeacherView extends Component {
                 <!-- 1. START SCREEN -->
                 <div id="ai-start-screen" class="ai-overlay active"
                     style="position:absolute; inset:0; z-index:20; background: linear-gradient(rgba(15, 23, 42, 0.5), rgba(30, 41, 59, 0.7)), url('assets/library-bg.png') no-repeat center center/cover; display:flex; justify-content:center; align-items:center;">
+
+                    <button class="btn-icon-glass" onclick="app.openWritingModes()" title="Geri"
+                        style="position:absolute; top:2rem; left:2rem; z-index: 100; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:white; width:44px; height:44px; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1.2rem; transition:all 0.3s; box-shadow:0 4px 15px rgba(0,0,0,0.3);">
+                        &larr;
+                    </button>
                     
                     <div class="ai-bg-particles" style="position:absolute; inset:0; pointer-events:none; overflow:hidden;">
                         <div class="particle" style="position:absolute; width:4px; height:4px; background:rgba(255,255,255,0.4); border-radius:50%; top:20%; left:30%; animation: float 10s infinite;"></div>
